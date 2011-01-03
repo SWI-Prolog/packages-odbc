@@ -3766,7 +3766,7 @@ pl_put_column(context *c, int nth, term_t col)
 #endif
 
 	    if ( p->plTypeID == SQL_PL_INTEGER )
-	      rc = PL_put_integer(val, t);
+	      rc = PL_put_int64(val, t);
 	    else
 	      rc = PL_put_float(val, (double)t); /* TBD: fraction */
 	  }
