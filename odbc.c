@@ -3040,7 +3040,7 @@ bind_parameters(context *ctxt, term_t parms)
       { SQLLEN len;
 	size_t l;
 	char *s;
-	int rep = prm->cTypeID == (SQL_C_CHAR ? REP_MB : REP_ISO_LATIN_1);
+	int rep = (prm->cTypeID == SQL_C_CHAR ? REP_MB : REP_ISO_LATIN_1);
 
 					/* check for NULL */
 	if ( is_sql_null(head, ctxt->null) )
