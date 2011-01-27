@@ -2064,6 +2064,11 @@ prepare_result(context *ctxt)
 	  goto use_sql_get_data;
         ptr_result->len_value = sizeof(char)*columnSize+1;
 	break;
+      case SQL_C_WCHAR:
+	if ( columnSize == 0 )
+	  goto use_sql_get_data;
+        ptr_result->len_value = sizeof(wchar_t)*columnSize+1;
+        break;
       case SQL_C_SLONG:
 	ptr_result->len_value = sizeof(SQLINTEGER);
 	break;
@@ -3456,12 +3461,13 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
       { case SQL_CHAR:
 	case SQL_VARCHAR:
 	case SQL_LONGVARCHAR:
+	  return SQL_C_CHAR;
 #ifdef SQL_WCHAR
 	case SQL_WCHAR:			/* see note above */
 	case SQL_WVARCHAR:
 	case SQL_WLONGVARCHAR:
+          return SQL_C_WCHAR;
 #endif
-	  return SQL_C_CHAR;
 
 	case SQL_BINARY:
 	case SQL_VARBINARY:
@@ -3556,27 +3562,36 @@ Microsoft SQL Server sometimes gives the wrong length indication as well
 as the wrong number of pad bytes for the first part of the data.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-WUNUSED static int
-put_chars(term_t val, int plTypeID, int rep, size_t len, const char *chars)
-{ int pltype;
-
-  switch( plTypeID )
+static int
+plTypeID_to_pltype(int plTypeID)
+{ switch( plTypeID )
   { case SQL_PL_DEFAULT:
     case SQL_PL_ATOM:
-      pltype = PL_ATOM;
-      break;
+      return PL_ATOM;
     case SQL_PL_STRING:
-      pltype = PL_STRING;
-      break;
+      return PL_STRING;
     case SQL_PL_CODES:
-      pltype = PL_CODE_LIST;
-      break;
+      return PL_CODE_LIST;
     default:
       assert(0);
       return FALSE;
   }
+}
+
+
+WUNUSED static int
+put_chars(term_t val, int plTypeID, int rep, size_t len, const char *chars)
+{ int pltype = plTypeID_to_pltype(plTypeID);
 
   return PL_unify_chars(val, pltype|rep, len, chars);
+}
+
+
+WUNUSED static int
+put_wchars(term_t val, int plTypeID, size_t len, const wchar_t *chars)
+{ int pltype = plTypeID_to_pltype(plTypeID);
+
+  return PL_unify_wchars(val, pltype, len, chars);
 }
 
 
@@ -3682,10 +3697,16 @@ pl_put_column(context *c, int nth, term_t col)
 
     switch( p->cTypeID )
     { case SQL_C_CHAR:
-	rc = put_chars(val, p->plTypeID, REP_MB, p->length_ind, (char*)p->ptr_value);
+	rc = put_chars(val, p->plTypeID, REP_MB,
+		       p->length_ind, (char*)p->ptr_value);
+        break;
+    case SQL_C_WCHAR:
+  	rc = put_wchars(val, p->plTypeID,
+			p->length_ind/sizeof(wchar_t), (wchar_t*)p->ptr_value);
         break;
       case SQL_C_BINARY:
-	rc = put_chars(val, p->plTypeID, REP_ISO_LATIN_1, p->length_ind, (char*)p->ptr_value);
+	rc = put_chars(val, p->plTypeID, REP_ISO_LATIN_1,
+		       p->length_ind, (char*)p->ptr_value);
 	break;
       case SQL_C_SLONG:
 	rc = PL_put_integer(val,*(SQLINTEGER *)p->ptr_value);
