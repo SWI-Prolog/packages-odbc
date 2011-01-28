@@ -252,7 +252,7 @@ typedef struct connection
   HDBC	       hdbc;			/* ODBC handle */
   nulldef     *null;			/* Prolog null value */
   unsigned     flags;			/* general flags */
-  int	       max_qualifier_lenght;	/* SQL_MAX_QUALIFIER_NAME_LEN */
+  int	       max_qualifier_length;	/* SQL_MAX_QUALIFIER_NAME_LEN */
   SQLULEN      max_nogetdata;		/* handle as long field if larger */
   struct connection *next;		/* next in chain */
 } connection;
@@ -269,7 +269,7 @@ typedef struct
   SQLSMALLINT  NumParams;		/* # parameters */
   functor_t    db_row;			/* Functor for row */
   SQLINTEGER   sqllen;			/* length of statement */
-  char        *sqltext;			/* statement text */
+  wchar_t      *sqltext;		/* statement text */
   unsigned     flags;			/* general flags */
   nulldef     *null;			/* Prolog null value */
   findall     *findall;			/* compiled code to create result */
@@ -608,17 +608,18 @@ list_length(term_t list)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int formatted_string(+Fmt-[Arg...], *len, char **out)
+int formatted_wstring(+Fmt-[Arg...], *len, char **out)
     Much like sformat, but this approach avoids avoids creating
     intermediate Prolog data.  Maybe we should publish pl_format()?
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static int
-formatted_string(term_t in, size_t *len, char **out)
+formatted_wstring(term_t in, size_t *len, wchar_t **out)
 { term_t av = PL_new_term_refs(3);
   static predicate_t format;
-  IOSTREAM *fd = Sopenmem(out, len, "w");
-
+  IOSTREAM *fd = Sopenmem((char**)out, len, "w");
+  if ( fd )
+    fd->encoding = ENC_WCHAR;
   if ( !format )
     format = PL_predicate("format", 3, "user");
 
@@ -633,6 +634,8 @@ formatted_string(term_t in, size_t *len, char **out)
   }
 
   Sclose(fd);
+  *len /= sizeof(wchar_t);
+  printf("Encoded %d chars\n", (int)*len);
   return TRUE;
 }
 
@@ -1808,7 +1811,7 @@ clone_context(context *in)
 
 					/* Prepare the statement */
   TRY(new,
-      SQLPrepare(new->hstmt, (SQLCHAR*)new->sqltext, new->sqllen),
+      SQLPrepareW(new->hstmt, (SQLWCHAR*)new->sqltext, new->sqllen),
       close_context(new));
 
 					/* Copy parameter declarations */
@@ -1825,6 +1828,7 @@ clone_context(context *in)
 
       switch(p->cTypeID)
       { case SQL_C_CHAR:
+        case SQL_C_WCHAR:
 	case SQL_C_BINARY:
 	  if ( !(p->ptr_value = odbc_malloc(p->length_ind+1)) )
 	    return NULL;
@@ -1908,20 +1912,20 @@ code to synchronise this problem.
 static int
 get_sql_text(context *ctxt, term_t tquery)
 { size_t qlen;
-  char *q;
+  wchar_t *q;
 
   if ( PL_is_functor(tquery, FUNCTOR_minus2) )
   { qlen = 0;
     q = NULL;
 
-    if ( !formatted_string(tquery, &qlen, &q) )
+    if ( !formatted_wstring(tquery, &qlen, &q) )
       return FALSE;
     ctxt->sqltext = q;
     ctxt->sqllen = (SQLINTEGER)qlen;
     set(ctxt, CTX_SQLMALLOCED);
-  } else if ( PL_get_nchars(tquery, &qlen, &q, CVT_ATOM|CVT_STRING|REP_MB|BUF_MALLOC))
+  } else if ( PL_get_wchars(tquery, &qlen, &q, CVT_ATOM|CVT_STRING|REP_UTF8|BUF_MALLOC))
   { ctxt->sqltext = q;
-    ctxt->sqllen = (SQLINTEGER)qlen;
+    ctxt->sqllen = (SQLINTEGER)qlen; /* This is the number of chars, not the number of bytes, so it is still correct */
     set(ctxt, CTX_SQLMALLOCED);
   } else
     return type_error(tquery, "atom_or_format");
@@ -1931,7 +1935,7 @@ get_sql_text(context *ctxt, term_t tquery)
 
 
 static int
-max_qualifier_lenght(connection *cn)
+max_qualifier_length(connection *cn)
 { if ( false(cn, CTX_GOT_QLEN) )
   { SQLUSMALLINT len;
     SWORD plen;
@@ -1940,16 +1944,16 @@ max_qualifier_lenght(connection *cn)
     if ( (rc=SQLGetInfo(cn->hdbc, SQL_MAX_QUALIFIER_NAME_LEN,
 			&len, sizeof(len), &plen)) == SQL_SUCCESS )
     { /*Sdprintf("SQL_MAX_QUALIFIER_NAME_LEN = %d\n", (int)len);*/
-      cn->max_qualifier_lenght = (int)len; /* 0: unknown */
+      cn->max_qualifier_length = (int)len; /* 0: unknown */
     } else
     { odbc_report(henv, cn->hdbc, NULL, rc);
-      cn->max_qualifier_lenght = -1;
+      cn->max_qualifier_length = -1;
     }
 
     set(cn, CTX_GOT_QLEN);
   }
 
-  return cn->max_qualifier_lenght;
+  return cn->max_qualifier_length;
 }
 
 
@@ -2026,7 +2030,7 @@ prepare_result(context *ctxt)
     { switch (ptr_result->sqlTypeID)
       { case SQL_LONGVARCHAR:
 	case SQL_VARCHAR:
-	{ int qlen = max_qualifier_lenght(ctxt->connection);
+	{ int qlen = max_qualifier_length(ctxt->connection);
 
 	  if ( qlen > 0 )
 	  { /*Sdprintf("Using SQL_MAX_QUALIFIER_NAME_LEN = %d\n", qlen);*/
@@ -2341,7 +2345,7 @@ pl_odbc_query(term_t dsn, term_t tquery, term_t trow, term_t options,
       }
       set(ctxt, CTX_INUSE);
       TRY(ctxt,
-	  SQLExecDirect(ctxt->hstmt, (SQLCHAR*)ctxt->sqltext, ctxt->sqllen),
+	  SQLExecDirectW(ctxt->hstmt, (SQLWCHAR*)ctxt->sqltext, ctxt->sqllen),
 	  close_context(ctxt));
 
       return odbc_row(ctxt, trow);
@@ -2654,6 +2658,7 @@ declare_parameters(context *ctxt, term_t parms)
   parameter *params;
   SWORD npar;
   int pn;
+  int character_size = sizeof(char);
 
   TRY(ctxt,
       SQLNumParams(ctxt->hstmt, &npar),
@@ -2710,7 +2715,7 @@ declare_parameters(context *ctxt, term_t parms)
     { TRY(ctxt, SQLDescribeParam(ctxt->hstmt,		/* hstmt */
 				 (SWORD)pn,		/* ipar */
 				 &sqlType,
-				 &cbColDef,
+				 &cbColDef,             /* This is in characters - not bytes */
 				 &params->scale,
 				 &fNullable),
 	  (void)0);
@@ -2722,19 +2727,22 @@ declare_parameters(context *ctxt, term_t parms)
     params->ptr_value = (SQLPOINTER)params->buf;
 
     switch(params->cTypeID)
-    { case SQL_C_CHAR:
+    { case SQL_C_WCHAR:
+        character_size = sizeof(wchar_t);
+        /* FALLTHROUGH */
+      case SQL_C_CHAR:
       case SQL_C_BINARY:
 	if ( cbColDef > 0 )
 	{ if ( params->sqlTypeID == SQL_DECIMAL ||
 	       params->sqlTypeID == SQL_NUMERIC )
-	  { cbColDef++;			/* add one for decimal dot */
+	  { cbColDef+=character_size;			/* add one for decimal dot */
 	    /*Sdprintf("cbColDef++ = %d\n", cbColDef);*/
 	  }
-	  if ( cbColDef+1 > PARAM_BUFSIZE )
-	  { if ( !(params->ptr_value = odbc_malloc(cbColDef+1)) )
+          if ( (cbColDef+1) * character_size > PARAM_BUFSIZE )
+          { if ( !(params->ptr_value = odbc_malloc((cbColDef+1) * character_size)) )
 	      return FALSE;
 	  }
-	  params->length_ind = cbColDef;
+	  params->length_ind = cbColDef * character_size;
 	} else				/* unknown, use SQLPutData() */
 	{ params->ptr_value = (PTR)(long)pn;
 	  params->len_value = SQL_LEN_DATA_AT_EXEC(0);
@@ -2813,7 +2821,7 @@ odbc_prepare(term_t dsn, term_t sql, term_t parms, term_t qid, term_t options)
   }
 
   TRY(ctxt,
-      SQLPrepare(ctxt->hstmt, (SQLCHAR*)ctxt->sqltext, ctxt->sqllen),
+      SQLPrepareW(ctxt->hstmt, (SQLWCHAR*)ctxt->sqltext, ctxt->sqllen),
       close_context(ctxt));
 
   if ( !declare_parameters(ctxt, parms) )
@@ -2962,35 +2970,48 @@ try_null(context *ctxt, parameter *prm, term_t val, const char *expected)
     return type_error(val, expected);
 }
 
+static unsigned int
+plTypeID_convert_flags(int plTypeID, const char** expected)
+{ unsigned int flags;
+
+  switch(plTypeID)
+  { case SQL_PL_DEFAULT:
+      flags = CVT_ATOM|CVT_STRING;
+      *expected = "text";
+      break;
+    case SQL_PL_ATOM:
+      flags = CVT_ATOM;
+      *expected = "atom";
+      break;
+    case SQL_PL_STRING:
+      flags = CVT_STRING;
+      *expected = "string";
+      break;
+    case SQL_PL_CODES:
+      flags = CVT_LIST;
+      *expected = "code_list";
+      break;
+    default:
+      assert(0);
+  }
+  return flags;
+}
 
 static int
 get_parameter_text(term_t t, parameter *prm, int rep, size_t *len, char **s)
 { unsigned int flags;
   const char *expected = "text";
 
-  switch(prm->plTypeID)
-  { case SQL_PL_DEFAULT:
-      flags = CVT_ATOM|CVT_STRING;
-      expected = "text";
-      break;
-    case SQL_PL_ATOM:
-      flags = CVT_ATOM;
-      expected = "atom";
-      break;
-    case SQL_PL_STRING:
-      flags = CVT_STRING;
-      expected = "string";
-      break;
-    case SQL_PL_CODES:
-      flags = CVT_LIST;
-      expected = "code_list";
-      break;
-    default:
-      assert(0);
-  }
+  flags = plTypeID_convert_flags(prm->plTypeID, &expected);
 
-  if ( !PL_get_nchars(t, len, s, flags|rep) )
+  if (prm->cTypeID == SQL_C_WCHAR)
+  { if ( !PL_get_wchars(t, len, (wchar_t**)s, flags|rep) )
     return type_error(t, expected);
+    *len *= sizeof(wchar_t);
+  } else
+  { if ( !PL_get_nchars(t, len, s, flags|rep) )
+      return type_error(t, expected);
+  }
 
   return TRUE;
 }
@@ -3041,6 +3062,7 @@ bind_parameters(context *ctxt, term_t parms)
 	  return FALSE;
         break;
       case SQL_C_CHAR:
+      case SQL_C_WCHAR:
       case SQL_C_BINARY:
       { SQLLEN len;
 	size_t l;
@@ -3052,11 +3074,9 @@ bind_parameters(context *ctxt, term_t parms)
 	{ prm->len_value = SQL_NULL_DATA;
 	  break;
 	}
-
 	if ( !get_parameter_text(head, prm, rep, &l, &s) )
 	  return FALSE;
 	len = l;
-
 	if ( len > prm->length_ind )
 	{ DEBUG(1, Sdprintf("Column-width = %d\n", prm->length_ind));
 	  return representation_error(head, "column_width");
@@ -3448,9 +3468,7 @@ uninstall_odbc()			/* TBD: make sure the library is */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 MS SQL Server seems to store the   dictionary  in UNICODE, returning the
-types SQL_WCHAR, etc. As current SWI-Prolog   doesn't do unicode, we ask
-them as normal SQL_C_CHAR, assuming the   driver  will convert this. One
-day this should become SQL_C_WCHAR
+types SQL_WCHAR, etc.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static SWORD
@@ -3513,7 +3531,10 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_VARBINARY:
 	case SQL_LONGVARBINARY:
 	  return SQL_C_BINARY;
-
+	case SQL_WCHAR:
+	case SQL_WVARCHAR:
+	case SQL_WLONGVARCHAR:
+          return SQL_C_WCHAR;
 	default:
 	  return SQL_C_CHAR;
       }
