@@ -2062,12 +2062,12 @@ prepare_result(context *ctxt)
       case SQL_C_BINARY:
 	if ( columnSize > ctxt->max_nogetdata || columnSize == 0 )
 	  goto use_sql_get_data;
-        ptr_result->len_value = sizeof(char)*columnSize+1;
+        ptr_result->len_value = sizeof(char)*(columnSize+1);
 	break;
       case SQL_C_WCHAR:
 	if ( columnSize == 0 )
 	  goto use_sql_get_data;
-        ptr_result->len_value = sizeof(wchar_t)*columnSize+1;
+        ptr_result->len_value = sizeof(wchar_t)*(columnSize+1);
         break;
       case SQL_C_SLONG:
 	ptr_result->len_value = sizeof(SQLINTEGER);
