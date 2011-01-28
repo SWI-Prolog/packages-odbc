@@ -1923,7 +1923,7 @@ get_sql_text(context *ctxt, term_t tquery)
     ctxt->sqltext = q;
     ctxt->sqllen = (SQLINTEGER)qlen;
     set(ctxt, CTX_SQLMALLOCED);
-  } else if ( PL_get_wchars(tquery, &qlen, &q, CVT_ATOM|CVT_STRING|REP_UTF8|BUF_MALLOC))
+  } else if ( PL_get_wchars(tquery, &qlen, &q, CVT_ATOM|CVT_STRING|BUF_MALLOC))
   { ctxt->sqltext = q;
     ctxt->sqllen = (SQLINTEGER)qlen; /* This is the number of chars, not the number of bytes, so it is still correct */
     set(ctxt, CTX_SQLMALLOCED);
