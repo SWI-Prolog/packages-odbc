@@ -635,7 +635,6 @@ formatted_wstring(term_t in, size_t *len, wchar_t **out)
 
   Sclose(fd);
   *len /= sizeof(wchar_t);
-  printf("Encoded %d chars\n", (int)*len);
   return TRUE;
 }
 
@@ -2582,6 +2581,7 @@ static sqltypedef sqltypes[] =
   { SQL_TINYINT,       "tinyint" },
   { SQL_VARBINARY,     "varbinary" },
   { SQL_VARCHAR,       "varchar" },
+  { SQL_WCHAR,         "nvarchar" },
   { 0,		       NULL }
 };
 
