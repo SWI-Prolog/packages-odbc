@@ -9,6 +9,20 @@ AC_SUBST(PLTARGETS)
 
 m4_include([../ac_swi_c.m4])
 
+AC_ARG_WITH(odbc,[  --with-odbc=<dir>	  Location of ODBC include/lib],
+	[case $withval in
+		no|yes)	echo 'Specify dir for XPM please';
+			exit 1 ;;
+		*)	ODBC_DIR=${withval}
+	esac])
+
+if test ! -z "$ODBC_DIR"; then
+  CFLAGS="-I${ODBC_DIR}/include ${CFLAGS}"
+  CPPFLAGS="-I${ODBC_DIR}/include ${CPPFLAGS}"
+  CIFLAGS="-I${ODBC_DIR}/include ${CIFLAGS}"
+  LDFLAGS="-L${ODBC_DIR}/lib ${LDFLAGS}"
+fi
+
 havelib=no
 AC_CHECK_LIB(odbc, SQLAllocEnv,
 	     LIBS="-lodbc $LIBS"
