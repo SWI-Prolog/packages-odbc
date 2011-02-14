@@ -3670,10 +3670,33 @@ put_chars(term_t val, int plTypeID, int rep, size_t len, const char *chars)
 
 
 WUNUSED static int
-put_wchars(term_t val, int plTypeID, size_t len, const wchar_t *chars)
+put_wchars(term_t val, int plTypeID, size_t len, const SQLWCHAR *chars)
 { int pltype = plTypeID_to_pltype(plTypeID);
 
+#if SIZEOF_SQLWCHAR == SIZEOF_WCHAR_T
   return PL_unify_wchars(val, pltype, len, chars);
+#else
+  wchar_t fast[256];
+  wchar_t *tmp, *o;
+  const SQLWCHAR *es = &chars[len];
+  int rc;
+
+  if ( len+1 <= sizeof(fast)/sizeof(fast[0]) )
+  { tmp = fast;
+  } else
+  { tmp	= odbc_malloc((len+1)*sizeof(wchar_t));
+  }
+
+  for(o=tmp; chars<es;)
+    *o++ = *chars++;
+  *o = 0;
+  rc = PL_unify_wchars(val, pltype, len, tmp);
+
+  if ( tmp != fast )
+    free(tmp);
+
+  return rc;
+#endif
 }
 
 
@@ -3784,7 +3807,7 @@ pl_put_column(context *c, int nth, term_t col)
         break;
     case SQL_C_WCHAR:
   	rc = put_wchars(val, p->plTypeID,
-			p->length_ind/sizeof(wchar_t), (wchar_t*)p->ptr_value);
+			p->length_ind/sizeof(SQLWCHAR), (SQLWCHAR*)p->ptr_value);
         break;
       case SQL_C_BINARY:
 	rc = put_chars(val, p->plTypeID, REP_ISO_LATIN_1,
