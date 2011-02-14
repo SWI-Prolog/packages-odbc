@@ -3016,26 +3016,6 @@ plTypeID_convert_flags(int plTypeID, const char** expected)
   return flags;
 }
 
-static int
-get_parameter_text(term_t t, parameter *prm, int rep, size_t *len, char **s)
-{ unsigned int flags;
-  const char *expected = "text";
-
-  flags = plTypeID_convert_flags(prm->plTypeID, &expected);
-
-  if ( prm->cTypeID == SQL_C_WCHAR )
-  { if ( !PL_get_wchars(t, len, (wchar_t**)s, flags|rep) )
-    return type_error(t, expected);
-    *len *= sizeof(wchar_t);
-  } else
-  { if ( !PL_get_nchars(t, len, s, flags|rep) )
-      return type_error(t, expected);
-  }
-
-  return TRUE;
-}
-
-
 
 static int
 bind_parameters(context *ctxt, term_t parms)
@@ -3087,21 +3067,49 @@ bind_parameters(context *ctxt, term_t parms)
 	size_t l;
 	char *s;
 	int rep = (prm->cTypeID == SQL_C_CHAR ? REP_MB : REP_ISO_LATIN_1);
+	const char *expected = "text";
+	unsigned int flags = plTypeID_convert_flags(prm->plTypeID, &expected);
 
 					/* check for NULL */
 	if ( is_sql_null(head, ctxt->null) )
 	{ prm->len_value = SQL_NULL_DATA;
 	  break;
 	}
-	if ( !get_parameter_text(head, prm, rep, &l, &s) )
-	  return FALSE;
-	len = l;
-	if ( len > prm->length_ind )
-	{ DEBUG(1, Sdprintf("Column-width = %d\n", prm->length_ind));
-	  return representation_error(head, "column_width");
+	if ( prm->cTypeID == SQL_C_WCHAR )
+	{ wchar_t *ws;
+	  size_t ls;
+
+	  if ( !PL_get_wchars(head, &ls, &ws, flags|rep) )
+	    return type_error(head, expected);
+	  len = ls*sizeof(SQLWCHAR);
+	  if (  len > prm->length_ind )
+	  { DEBUG(1, Sdprintf("Column-width = %d\n", prm->length_ind));
+	    return representation_error(head, "column_width");
+	  }
+	  prm->len_value = len;
+#if SIZEOF_SQLWCHAR == SIZEOF_WCHAR_T
+	  memcpy(prm->ptr_value, ws, (ls+1)*sizeof(SQLWCHAR));
+#else
+	{ wchar_t *es = ws+ls;
+	  SQLWCHAR *o;
+
+	  for(o=(SQLWCHAR*)prm->ptr_value; ws<es;)
+	    *o++ = *ws++;
+	  *o = 0;
+        }
+#endif
+	} else
+	{ if ( !PL_get_nchars(head, &l, &s, flags|rep) )
+	    return type_error(head, expected);
+	  len = l;
+	  if ( len > prm->length_ind )
+	  { DEBUG(1, Sdprintf("Column-width = %d\n", prm->length_ind));
+	    return representation_error(head, "column_width");
+	  }
+	  memcpy(prm->ptr_value, s, len+1);
+	  prm->len_value = len;
 	}
-	memcpy(prm->ptr_value, s, len+1);
-	prm->len_value = len;
+
 	break;
       }
       case SQL_C_TYPE_DATE:
@@ -3170,13 +3178,47 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	  if ( is_sql_null(p->put_data, ctxt->null) )
 	  { s = NULL;
 	    len = SQL_NULL_DATA;
+	    SQLPutData(ctxt->hstmt, s, len);
 	  } else
 	  { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1 : REP_MB);
+	    const char *expected = "text";
+	    unsigned int flags = plTypeID_convert_flags(p->plTypeID, &expected);
 
-	    if ( !get_parameter_text(p->put_data, p, rep, &len, &s) )
-	      return FALSE;
+	    if ( p->cTypeID == SQL_C_WCHAR )
+	    { wchar_t *ws;
+
+	      if ( !PL_get_wchars(p->put_data, &len, &ws, flags|rep) )
+		return type_error(p->put_data, expected);
+
+#if SIZEOF_SQLWCHAR == SIZEOF_WCHAR_T
+	      SQLPutData(ctxt->hstmt, ws, len*sizeof(SQLWCHAR));
+#else
+	    { SQLWCHAR fast[256];
+	      SQLWCHAR *tmp;
+	      wchar_t *es = ws+len;
+	      SQLWCHAR *o;
+
+	      if ( len+1 <= sizeof(fast)/sizeof(SQLWCHAR) )
+	      { tmp = fast;
+	      } else
+	      { tmp = odbc_malloc((len+1)*sizeof(SQLWCHAR));
+	      }
+
+	      for(o=tmp; ws<es;)
+		*o++ = *ws++;
+	      *o = 0;
+	      SQLPutData(ctxt->hstmt, tmp, len*sizeof(SQLWCHAR));
+
+	      if ( tmp != fast )
+		free(tmp);
+	    }
+#endif
+	    } else
+	    { if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
+		return type_error(p->put_data, expected);
+	      SQLPutData(ctxt->hstmt, s, len);
+	    }
 	  }
-	  SQLPutData(ctxt->hstmt, s, len);
 	}
       }
       if ( !report_status(ctxt) )
