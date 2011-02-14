@@ -38,6 +38,9 @@ Stefano  De  Giorgi  (s.degiorgi@tin.it).
 #include <windows.h>
 #define HAVE_MKTIME 1
 #define HAVE_GMTIME 1
+#undef WORDS_BIGENDIAN
+#define SIZEOF_SQLWCHAR 2
+#define SIZEOF_WCHAR_T 2
 #if (_MSC_VER >= 1400)
 #define HAVE_SQLLEN 1			/* should depend on SDK version? */
 #define HAVE_SQLULEN 1
