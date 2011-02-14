@@ -78,6 +78,12 @@ static int odbc_debuglevel = 0;
 #define SQL_MARS_ENABLED_YES (SQLPOINTER)1
 #endif
 
+#ifndef WORDS_BIGENDIAN
+#define ENC_SQLWCHAR ENC_UNICODE_LE
+#else
+#define ENC_SQLWCHAR ENC_UNICODE_BE
+#endif
+
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
 #include <stdio.h>
@@ -268,8 +274,8 @@ typedef struct
   SQLSMALLINT  NumCols;			/* # columns */
   SQLSMALLINT  NumParams;		/* # parameters */
   functor_t    db_row;			/* Functor for row */
-  SQLINTEGER   sqllen;			/* length of statement */
-  wchar_t      *sqltext;		/* statement text */
+  SQLINTEGER   sqllen;			/* length of statement (in characters) */
+  SQLWCHAR    *sqltext;			/* statement text */
   unsigned     flags;			/* general flags */
   nulldef     *null;			/* Prolog null value */
   findall     *findall;			/* compiled code to create result */
@@ -614,12 +620,12 @@ int formatted_wstring(+Fmt-[Arg...], *len, char **out)
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static int
-formatted_wstring(term_t in, size_t *len, wchar_t **out)
+formatted_wstring(term_t in, size_t *len, SQLWCHAR **out)
 { term_t av = PL_new_term_refs(3);
   static predicate_t format;
   IOSTREAM *fd = Sopenmem((char**)out, len, "w");
   if ( fd )
-    fd->encoding = ENC_WCHAR;
+    fd->encoding = ENC_SQLWCHAR;
   if ( !format )
     format = PL_predicate("format", 3, "user");
 
@@ -634,7 +640,7 @@ formatted_wstring(term_t in, size_t *len, wchar_t **out)
   }
 
   Sclose(fd);
-  *len /= sizeof(wchar_t);
+  *len /= sizeof(SQLWCHAR);
   return TRUE;
 }
 
@@ -1802,15 +1808,15 @@ clone_context(context *in)
   if ( !(new = new_context(in->connection)) )
     return NULL;
 					/* Copy SQL statement */
-  if ( !(new->sqltext = PL_malloc(in->sqllen+1)) )
+  if ( !(new->sqltext = PL_malloc((in->sqllen+1)*sizeof(SQLWCHAR))) )
     return NULL;
   new->sqllen = in->sqllen;
-  memcpy(new->sqltext, in->sqltext, in->sqllen+1);
+  memcpy(new->sqltext, in->sqltext, (in->sqllen+1)*sizeof(SQLWCHAR));
   set(new, CTX_SQLMALLOCED);
 
 					/* Prepare the statement */
   TRY(new,
-      SQLPrepareW(new->hstmt, (SQLWCHAR*)new->sqltext, new->sqllen),
+      SQLPrepareW(new->hstmt, new->sqltext, new->sqllen),
       close_context(new));
 
 					/* Copy parameter declarations */
@@ -1911,7 +1917,8 @@ code to synchronise this problem.
 static int
 get_sql_text(context *ctxt, term_t tquery)
 { size_t qlen;
-  wchar_t *q;
+  SQLWCHAR *q;
+  wchar_t *ws;
 
   if ( PL_is_functor(tquery, FUNCTOR_minus2) )
   { qlen = 0;
@@ -1922,9 +1929,21 @@ get_sql_text(context *ctxt, term_t tquery)
     ctxt->sqltext = q;
     ctxt->sqllen = (SQLINTEGER)qlen;
     set(ctxt, CTX_SQLMALLOCED);
-  } else if ( PL_get_wchars(tquery, &qlen, &q, CVT_ATOM|CVT_STRING|BUF_MALLOC))
-  { ctxt->sqltext = q;
-    ctxt->sqllen = (SQLINTEGER)qlen; /* This is the number of chars, not the number of bytes, so it is still correct */
+  } else if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING))
+  {
+#if SIZEOF_SQLWCHAR != SIZEOF_WCHAR_T
+    wchar_t *es = ws+qlen;
+    SQLWCHAR *o;
+
+    q = PL_malloc((qlen+1)*sizeof(SQLWCHAR));
+    for(o=q; ws<es;)
+      *o++ = *ws++;
+    *o = 0;
+#else
+    q = (SQLWCHAR *)ws;
+#endif
+    ctxt->sqltext = q;
+    ctxt->sqllen = (SQLINTEGER)qlen;
     set(ctxt, CTX_SQLMALLOCED);
   } else
     return type_error(tquery, "atom_or_format");
@@ -2344,7 +2363,7 @@ pl_odbc_query(term_t dsn, term_t tquery, term_t trow, term_t options,
       }
       set(ctxt, CTX_INUSE);
       TRY(ctxt,
-	  SQLExecDirectW(ctxt->hstmt, (SQLWCHAR*)ctxt->sqltext, ctxt->sqllen),
+	  SQLExecDirectW(ctxt->hstmt, ctxt->sqltext, ctxt->sqllen),
 	  close_context(ctxt));
 
       return odbc_row(ctxt, trow);
@@ -2821,7 +2840,7 @@ odbc_prepare(term_t dsn, term_t sql, term_t parms, term_t qid, term_t options)
   }
 
   TRY(ctxt,
-      SQLPrepareW(ctxt->hstmt, (SQLWCHAR*)ctxt->sqltext, ctxt->sqllen),
+      SQLPrepareW(ctxt->hstmt, ctxt->sqltext, ctxt->sqllen),
       close_context(ctxt));
 
   if ( !declare_parameters(ctxt, parms) )
@@ -3004,7 +3023,7 @@ get_parameter_text(term_t t, parameter *prm, int rep, size_t *len, char **s)
 
   flags = plTypeID_convert_flags(prm->plTypeID, &expected);
 
-  if (prm->cTypeID == SQL_C_WCHAR)
+  if ( prm->cTypeID == SQL_C_WCHAR )
   { if ( !PL_get_wchars(t, len, (wchar_t**)s, flags|rep) )
     return type_error(t, expected);
     *len *= sizeof(wchar_t);

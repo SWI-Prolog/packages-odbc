@@ -33,10 +33,16 @@ if test $havelib = no; then
 	       havelib=yes)
 fi
 
+AC_C_BIGENDIAN
+
 AC_CHECK_HEADERS(malloc.h sql.h time.h)
 AC_CHECK_FUNCS(localtime mktime gmtime timegm)
 AC_CHECK_TYPES([long long])
 AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_SIZEOF(SQLWCHAR, 2,
+		[ #include <sql.h>
+		])
+AC_CHECK_SIZEOF(wchar_t, 4)
 AC_CHECK_TYPES([SQLLEN, SQLULEN],,,
 	       [#include <sql.h>
 	       ])
