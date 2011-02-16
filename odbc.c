@@ -714,7 +714,7 @@ formatted_string(context *ctxt, term_t in)
 { term_t av = PL_new_term_refs(3);
   static predicate_t format;
   char *out = NULL;
-  size_t len;
+  size_t len = 0;
   IOSTREAM *fd = Sopenmem(&out, &len, "w");
 
   if ( !fd )
