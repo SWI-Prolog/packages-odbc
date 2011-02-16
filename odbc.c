@@ -271,6 +271,7 @@ typedef struct connection
   int	       max_qualifier_length;	/* SQL_MAX_QUALIFIER_NAME_LEN */
   SQLULEN      max_nogetdata;		/* handle as long field if larger */
   IOENC	       encoding;		/* Character encoding to use */
+  int	       rep_flag;		/* REP_* for encoding */
   struct connection *next;		/* next in chain */
 } connection;
 
@@ -587,6 +588,10 @@ odbc_malloc(size_t bytes)
 	PL_get_typed_arg_ex(i, t, PL_get_float, "float", n)
 #define get_encoding_arg_ex(i, t, n) \
 	PL_get_typed_arg_ex(i, t, get_encoding, "encoding", n)
+
+/* Used for passwd and driver string.  Should use Unicode/encoding
+   stuff for that.
+*/
 
 static int
 get_text(term_t t, char **s)
@@ -1344,7 +1349,7 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    const char *dsource;			/* odbc data source */
    char *uid = NULL;			/* user id */
    char *pwd = NULL;			/* password */
-   char *driver_string = NULL;			/* driver_string */
+   char *driver_string = NULL;		/* driver_string */
    atom_t alias = 0;			/* alias-name */
    IOENC encoding = DEFAULT_ENCODING;	/* Connection encoding */
    int mars = 0;			/* mars-value */
@@ -1478,6 +1483,7 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
      set(cn, CTX_SILENT);
 
    cn->encoding = encoding;
+   cn->rep_flag = enc_to_rep(encoding);
    cn->hdbc     = hdbc;
 
    if ( !unify_connection(cid, cn) )
@@ -1624,6 +1630,7 @@ odbc_set_connection(connection *cn, term_t option)
       return FALSE;
 
     cn->encoding = val;
+    cn->rep_flag = enc_to_rep(val);
 
     return TRUE;
   } else if ( PL_is_functor(option, FUNCTOR_null1) )
@@ -2072,7 +2079,7 @@ get_sql_text(context *ctxt, term_t tquery)
 	return type_error(tquery, "atom_or_format");
     } else
     { char *s;
-      int rep = enc_to_rep(ctxt->connection->encoding);
+      int rep = ctxt->connection->rep_flag;
 
       if ( PL_get_nchars(tquery, &qlen, &s, CVT_ATOM|CVT_STRING|rep))
       { ctxt->sqltext.a = (unsigned char*)s;
@@ -2566,11 +2573,12 @@ pl_odbc_column(term_t dsn, term_t db, term_t row, control_t handle)
       size_t len;
       char *s;
 
-      if ( !PL_get_nchars(db, &len, &s, CVT_ATOM|CVT_STRING|REP_MB) )
-	return type_error(db, "atom");
-
       if ( !get_connection(dsn, &cn) )
 	return FALSE;
+					/* TBD: Unicode version */
+      if ( !PL_get_nchars(db, &len, &s, CVT_ATOM|CVT_STRING|cn->rep_flag) )
+	return type_error(db, "atom");
+
       if ( !(ctxt = new_context(cn)) )
 	return FALSE;
       ctxt->null = NULL;		/* use default $null$ */
@@ -3212,7 +3220,6 @@ bind_parameters(context *ctxt, term_t parms)
       { SQLLEN len;
 	size_t l;
 	char *s;
-	int rep = (prm->cTypeID == SQL_C_CHAR ? REP_MB : REP_ISO_LATIN_1);
 	const char *expected = "text";
 	unsigned int flags = plTypeID_convert_flags(prm->plTypeID, &expected);
 
@@ -3225,7 +3232,7 @@ bind_parameters(context *ctxt, term_t parms)
 	{ wchar_t *ws;
 	  size_t ls;
 
-	  if ( !PL_get_wchars(head, &ls, &ws, flags|rep) )
+	  if ( !PL_get_wchars(head, &ls, &ws, flags) )
 	    return type_error(head, expected);
 	  len = ls*sizeof(SQLWCHAR);
 	  if (  len > prm->length_ind )
@@ -3245,7 +3252,10 @@ bind_parameters(context *ctxt, term_t parms)
         }
 #endif
 	} else
-	{ if ( !PL_get_nchars(head, &l, &s, flags|rep) )
+	{ int rep = (prm->cTypeID == SQL_C_CHAR ? ctxt->connection->rep_flag
+		     				: REP_ISO_LATIN_1);
+
+	  if ( !PL_get_nchars(head, &l, &s, flags|rep) )
 	    return type_error(head, expected);
 	  len = l;
 	  if ( len > prm->length_ind )
@@ -3326,14 +3336,13 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	    len = SQL_NULL_DATA;
 	    SQLPutData(ctxt->hstmt, s, len);
 	  } else
-	  { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1 : REP_MB);
-	    const char *expected = "text";
+	  { const char *expected = "text";
 	    unsigned int flags = plTypeID_convert_flags(p->plTypeID, &expected);
 
 	    if ( p->cTypeID == SQL_C_WCHAR )
 	    { wchar_t *ws;
 
-	      if ( !PL_get_wchars(p->put_data, &len, &ws, flags|rep) )
+	      if ( !PL_get_wchars(p->put_data, &len, &ws, flags) )
 		return type_error(p->put_data, expected);
 
 #if SIZEOF_SQLWCHAR == SIZEOF_WCHAR_T
@@ -3360,7 +3369,10 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	    }
 #endif
 	    } else
-	    { if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
+	    { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1
+						    : ctxt->connection->rep_flag);
+
+	      if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
 		return type_error(p->put_data, expected);
 	      SQLPutData(ctxt->hstmt, s, len);
 	    }
@@ -3692,7 +3704,8 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_WCHAR:			/* see note above */
 	case SQL_WVARCHAR:
 	case SQL_WLONGVARCHAR:
-          return SQL_C_WCHAR;
+          return ctxt->connection->encoding == ENC_SQLWCHAR ? SQL_C_WCHAR
+							    : SQL_C_CHAR;
 #endif
 
 	case SQL_BINARY:
@@ -3742,7 +3755,8 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_WCHAR:
 	case SQL_WVARCHAR:
 	case SQL_WLONGVARCHAR:
-          return SQL_C_WCHAR;
+          return ctxt->connection->encoding == ENC_SQLWCHAR ? SQL_C_WCHAR
+							    : SQL_C_CHAR;
 	default:
 	  return SQL_C_CHAR;
       }
@@ -3865,7 +3879,7 @@ pl_put_column(context *c, int nth, term_t col)
   }
 
   if ( !p->ptr_value )			/* use SQLGetData() */
-  { char buf[256];
+  { char buf[256];			/* TBD: Unicode handling */
     char *data = buf;
     SQLLEN len;
 
@@ -3931,7 +3945,8 @@ pl_put_column(context *c, int nth, term_t col)
     }
 
   got_all_data:
-    { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1 : REP_MB);
+    { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1
+					    : c->connection->rep_flag);
 
       if ( !put_chars(val, p->plTypeID, rep, len, data) )
 	return FALSE;
@@ -3949,7 +3964,7 @@ pl_put_column(context *c, int nth, term_t col)
 
     switch( p->cTypeID )
     { case SQL_C_CHAR:
-	rc = put_chars(val, p->plTypeID, REP_MB,
+	rc = put_chars(val, p->plTypeID, c->connection->rep_flag,
 		       p->length_ind, (char*)p->ptr_value);
         break;
       case SQL_C_WCHAR:
