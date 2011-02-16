@@ -87,6 +87,12 @@ static int odbc_debuglevel = 0;
 #define ENC_SQLWCHAR ENC_UNICODE_BE
 #endif
 
+#ifdef __WINDOWS__
+#define DEFAULT_ENCODING ENC_WCHAR
+#else
+#define DEFAULT_ENCODING ENC_UTF8
+#endif
+
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
 #include <stdio.h>
@@ -180,6 +186,7 @@ static functor_t FUNCTOR_resource_error1; /* resource_error(Error) */
 static functor_t FUNCTOR_permission_error3;
 static functor_t FUNCTOR_odbc_statement1; /* $odbc_statement(Id) */
 static functor_t FUNCTOR_odbc_connection1;
+static functor_t FUNCTOR_encoding1;
 static functor_t FUNCTOR_user1;
 static functor_t FUNCTOR_password1;
 static functor_t FUNCTOR_driver_string1;
@@ -263,6 +270,7 @@ typedef struct connection
   unsigned     flags;			/* general flags */
   int	       max_qualifier_length;	/* SQL_MAX_QUALIFIER_NAME_LEN */
   SQLULEN      max_nogetdata;		/* handle as long field if larger */
+  IOENC	       encoding;		/* Character encoding to use */
   struct connection *next;		/* next in chain */
 } connection;
 
@@ -573,11 +581,66 @@ odbc_malloc(size_t bytes)
 	PL_get_typed_arg_ex(i, t, PL_get_bool, "boolean", n)
 #define get_float_arg_ex(i, t, n) \
 	PL_get_typed_arg_ex(i, t, PL_get_float, "float", n)
+#define get_encoding_arg_ex(i, t, n) \
+	PL_get_typed_arg_ex(i, t, get_encoding, "encoding", n)
 
 static int
 get_text(term_t t, char **s)
 { return PL_get_chars(t, s, CVT_ATOM|CVT_STRING|CVT_LIST|REP_MB|BUF_RING);
 }
+
+typedef struct enc_name
+{ char	       *name;
+  IOENC		code;
+  atom_t	a;
+} enc_name;
+
+static enc_name encodings[] =
+{ { "iso_latin_1", ENC_ISO_LATIN_1 },
+  { "locale",	   ENC_ANSI },
+  { "utf8",	   ENC_UTF8 },
+  { "unicode",     ENC_WCHAR },
+  { NULL }
+};
+
+
+static int
+get_encoding(term_t t, IOENC *enc)
+{ atom_t a;
+
+  if ( PL_get_atom(t, &a) )
+  { enc_name *en;
+
+    for(en=encodings; en->name; en++)
+    { if ( !en->a )
+	en->a = PL_new_atom(en->name);
+      if ( en->a == a )
+      { *enc = en->code;
+	return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
+
+static void
+put_encoding(term_t t, IOENC enc)
+{ enc_name *en;
+
+  for(en=encodings; en->name; en++)
+  { if ( en->code == enc )
+    { if ( !en->a )
+	en->a = PL_new_atom(en->name);
+      PL_put_atom(t, en->a);
+      return;
+    }
+  }
+
+  assert(0);
+}
+
 
 static int
 PL_get_typed_arg_ex(int i, term_t t, int (*func)(), const char *ex, void *ap)
@@ -1250,6 +1313,7 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    char *pwd = NULL;			/* password */
    char *driver_string = NULL;			/* driver_string */
    atom_t alias = 0;			/* alias-name */
+   IOENC encoding = DEFAULT_ENCODING;	/* Connection encoding */
    int mars = 0;			/* mars-value */
    atom_t open = 0;			/* open next connection */
    RETCODE rc;				/* result code for ODBC functions */
@@ -1289,6 +1353,9 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 	 return domain_error(head, "open_mode");
      } else if ( PL_is_functor(head, FUNCTOR_silent1) )
      { if ( !get_bool_arg_ex(1, head, &silent) )
+	 return FALSE;
+     } else if ( PL_is_functor(head, FUNCTOR_encoding1) )
+     { if ( !get_encoding_arg_ex(1, head, &encoding) )
 	 return FALSE;
      } else if ( PL_is_functor(head, FUNCTOR_auto_commit1) ||
 		 PL_is_functor(head, FUNCTOR_null1) ||
@@ -1377,7 +1444,8 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    if ( silent )
      set(cn, CTX_SILENT);
 
-   cn->hdbc = hdbc;
+   cn->encoding = encoding;
+   cn->hdbc     = hdbc;
 
    if ( !unify_connection(cid, cn) )
    { free_connection(cn);
@@ -1516,6 +1584,15 @@ odbc_set_connection(connection *cn, term_t option)
     set(cn, CTX_SILENT);
 
     return TRUE;
+  } else if ( PL_is_functor(option, FUNCTOR_encoding1) )
+  { IOENC val;
+
+    if ( !get_encoding_arg_ex(1, option, &val) )
+      return FALSE;
+
+    cn->encoding = val;
+
+    return TRUE;
   } else if ( PL_is_functor(option, FUNCTOR_null1) )
   { term_t a = PL_new_term_ref();
 
@@ -1560,7 +1637,7 @@ Options for SQLGetInfo() from http://msdn.microsoft.com/library/default.asp?url=
 typedef struct
 { const char *name;
   UWORD id;
-  enum { text, sword } type;
+  enum { text, sword, ioenc } type;
   functor_t functor;
 } conn_option;
 
@@ -1572,6 +1649,7 @@ static conn_option conn_option_list[] =
   { "driver_odbc_version", SQL_DRIVER_ODBC_VER, text },
   { "driver_version",      SQL_DRIVER_VER, text },
   { "active_statements",   SQL_ACTIVE_STATEMENTS, sword },
+  { "encoding",		   0, ioenc },
   { NULL, 0 }
 };
 
@@ -1623,31 +1701,34 @@ find:
       SWORD len;
       RETCODE rc;
 
-      if ( (rc=SQLGetInfo(cn->hdbc, opt->id,
-			  buf, sizeof(buf), &len)) != SQL_SUCCESS )
-      { if ( f )
-	  return odbc_report(henv, cn->hdbc, NULL, rc);
-	else
-	  continue;
-      }
-
-      switch( opt->type )
-      { case text:
-	  PL_put_atom_nchars(val, len, buf);
-	  break;
-	case sword:
-	{ SQLSMALLINT *p = (SQLSMALLINT*)buf;
-	  SQLSMALLINT v = *p;
-
-	  if ( !PL_put_integer(val, v) )
-	    return FALSE;
-	  break;
+      if ( opt->type == ioenc )
+      { put_encoding(val, cn->encoding);
+      } else
+      { if ( (rc=SQLGetInfo(cn->hdbc, opt->id,
+			    buf, sizeof(buf), &len)) != SQL_SUCCESS )
+	{ if ( f )
+	    return odbc_report(henv, cn->hdbc, NULL, rc);
+	  else
+	    continue;
 	}
-	default:
-	  assert(0);
-	return FALSE;
-      }
 
+	switch( opt->type )
+	{ case text:
+	    PL_put_atom_nchars(val, len, buf);
+	    break;
+	  case sword:
+	  { SQLSMALLINT *p = (SQLSMALLINT*)buf;
+	    SQLSMALLINT v = *p;
+
+	    if ( !PL_put_integer(val, v) )
+	      return FALSE;
+	    break;
+	  }
+	  default:
+	    assert(0);
+	  return FALSE;
+	}
+      }
 
       if ( f )
 	return PL_unify(a, val);
@@ -3466,9 +3547,10 @@ install_odbc4pl()
    FUNCTOR_representation_error1 = MKFUNCTOR("representation_error", 1);
    FUNCTOR_odbc_statement1	 = MKFUNCTOR("$odbc_statement", 1);
    FUNCTOR_odbc_connection1	 = MKFUNCTOR("$odbc_connection", 1);
+   FUNCTOR_encoding1		 = MKFUNCTOR("encoding", 1);
    FUNCTOR_user1		 = MKFUNCTOR("user", 1);
    FUNCTOR_password1		 = MKFUNCTOR("password", 1);
-   FUNCTOR_driver_string1		 = MKFUNCTOR("driver_string", 1);
+   FUNCTOR_driver_string1	 = MKFUNCTOR("driver_string", 1);
    FUNCTOR_alias1		 = MKFUNCTOR("alias", 1);
    FUNCTOR_mars1		 = MKFUNCTOR("mars", 1);
    FUNCTOR_open1		 = MKFUNCTOR("open", 1);

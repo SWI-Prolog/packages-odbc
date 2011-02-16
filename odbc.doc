@@ -169,6 +169,27 @@ to \const{dynamic} makes it possible to have multiple active statements
 on the same connection with Microsoft SQL server.  Other values
 are \const{static}, \const{forwards_only} and \const{keyset_driven}.
 
+    \termitem{encoding}{+Encoding}
+Define the encoding used to communicate to the driver.  Defined values
+are given below.  The default on MS-Windows is \const{unicode} while
+on other platforms it is \const{utf8}.  Below, the *A() functions refer
+to the `ansi' ODBC functions that exchange bytes and the *W() functions
+refer to the `unicode' ODBC functions that exchange UCS-2 characters.
+
+    \begin{description}
+	\termitem{iso_latin_1}{}
+Communicate using the *A() functions and pass bytes untranslated.
+	\termitem{locale}{}
+Communicate using the *A() functions and translated between Prolog
+Unicode characters and their (possibly) multibyte representation
+in the current locale.
+	\termitem{utf8}{}
+Communicate using the *A() functions and translated between Prolog
+Unicode characters and their UTF-8 encoding.
+	\termitem{unicode}{}
+Communicate using the *W() functions.
+    \end{description}
+
     \termitem{silent}{Bool}
 If \const{true} (default \const{false}), statements returning
 \const{SQL_SUCCESS_WITH_INFO} succeed without printing the info.
