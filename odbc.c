@@ -88,7 +88,7 @@ static int odbc_debuglevel = 0;
 #endif
 
 #ifdef __WINDOWS__
-#define DEFAULT_ENCODING ENC_WCHAR
+#define DEFAULT_ENCODING ENC_SQLWCHAR
 #else
 #define DEFAULT_ENCODING ENC_UTF8
 #endif
@@ -286,7 +286,11 @@ typedef struct
   SQLSMALLINT  NumParams;		/* # parameters */
   functor_t    db_row;			/* Functor for row */
   SQLINTEGER   sqllen;			/* length of statement (in characters) */
-  SQLWCHAR    *sqltext;			/* statement text */
+  union
+  { SQLWCHAR  *w;			/* as unicode */
+    unsigned char *a;			/* as multibyte */
+  } sqltext;				/* statement text */
+  int	       char_width;		/* sizeof a character */
   unsigned     flags;			/* general flags */
   nulldef     *null;			/* Prolog null value */
   findall     *findall;			/* compiled code to create result */
@@ -599,7 +603,7 @@ static enc_name encodings[] =
 { { "iso_latin_1", ENC_ISO_LATIN_1 },
   { "locale",	   ENC_ANSI },
   { "utf8",	   ENC_UTF8 },
-  { "unicode",     ENC_WCHAR },
+  { "unicode",     ENC_SQLWCHAR },
   { NULL }
 };
 
@@ -643,6 +647,21 @@ put_encoding(term_t t, IOENC enc)
 
 
 static int
+enc_to_rep(IOENC enc)
+{ switch(enc)
+  { case ENC_ISO_LATIN_1:
+      return REP_ISO_LATIN_1;
+    case ENC_ANSI:
+      return REP_MB;
+    case ENC_UTF8:
+      return REP_UTF8;
+    default:
+      assert(0);
+  }
+}
+
+
+static int
 PL_get_typed_arg_ex(int i, term_t t, int (*func)(), const char *ex, void *ap)
 { term_t a = PL_new_term_ref();
 
@@ -680,33 +699,47 @@ list_length(term_t list)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int formatted_wstring(+Fmt-[Arg...], *len, char **out)
+int formatted_string(Context, +Fmt-[Arg...])
     Much like sformat, but this approach avoids avoids creating
     intermediate Prolog data.  Maybe we should publish pl_format()?
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static int
-formatted_wstring(term_t in, size_t *len, SQLWCHAR **out)
+formatted_string(context *ctxt, term_t in)
 { term_t av = PL_new_term_refs(3);
   static predicate_t format;
-  IOSTREAM *fd = Sopenmem((char**)out, len, "w");
-  if ( fd )
-    fd->encoding = ENC_SQLWCHAR;
+  char *out = NULL;
+  size_t len;
+  IOSTREAM *fd = Sopenmem(&out, &len, "w");
+
+  if ( !fd )
+    return FALSE;			/* resource error */
   if ( !format )
     format = PL_predicate("format", 3, "user");
 
+  fd->encoding = ctxt->connection->encoding;
   if ( !PL_unify_stream(av+0, fd) ||
        !PL_get_arg(1, in, av+1) ||
        !PL_get_arg(2, in, av+2) ||
        !PL_call_predicate(NULL, PL_Q_PASS_EXCEPTION, format, av) )
   { Sclose(fd);
-    if ( *out )
-      PL_free(*out);
+    if ( out )
+      PL_free(out);
     return FALSE;
   }
-
   Sclose(fd);
-  *len /= sizeof(SQLWCHAR);
+
+  if ( ctxt->connection->encoding == ENC_SQLWCHAR )
+  { ctxt->sqltext.w = (SQLWCHAR*)out;
+    ctxt->sqllen = len/sizeof(SQLWCHAR);
+    ctxt->char_width = sizeof(SQLWCHAR);
+  } else
+  { ctxt->sqltext.a = (unsigned char*)out;
+    ctxt->sqllen = len;
+    ctxt->char_width = sizeof(char);
+  }
+  set(ctxt, CTX_SQLMALLOCED);
+
   return TRUE;
 }
 
@@ -1866,7 +1899,7 @@ free_context(context *ctx)
   free_parameters(ctx->NumCols,   ctx->result);
   free_parameters(ctx->NumParams, ctx->params);
   if ( true(ctx, CTX_SQLMALLOCED) )
-    PL_free(ctx->sqltext);
+    PL_free(ctx->sqltext.a);
   if ( true(ctx, CTX_OWNNULL) )
     free_nulldef(ctx->null);
   if ( ctx->findall )
@@ -1888,20 +1921,28 @@ have multiple cursors on one statement?
 static context *
 clone_context(context *in)
 { context *new;
+  size_t bytes = (in->sqllen+1)*in->char_width;
 
   if ( !(new = new_context(in->connection)) )
     return NULL;
 					/* Copy SQL statement */
-  if ( !(new->sqltext = PL_malloc((in->sqllen+1)*sizeof(SQLWCHAR))) )
+  if ( !(new->sqltext.a = PL_malloc(bytes)) )
     return NULL;
   new->sqllen = in->sqllen;
-  memcpy(new->sqltext, in->sqltext, (in->sqllen+1)*sizeof(SQLWCHAR));
+  new->char_width = in->char_width;
+  memcpy(new->sqltext.a, in->sqltext.a, bytes);
   set(new, CTX_SQLMALLOCED);
 
 					/* Prepare the statement */
-  TRY(new,
-      SQLPrepareW(new->hstmt, new->sqltext, new->sqllen),
-      close_context(new));
+  if ( new->char_width == 1 )
+  { TRY(new,
+	SQLPrepareA(new->hstmt, new->sqltext.a, new->sqllen),
+	close_context(new));
+  } else
+  { TRY(new,
+	SQLPrepareW(new->hstmt, new->sqltext.w, new->sqllen),
+	close_context(new));
+  }
 
 					/* Copy parameter declarations */
   if ( (new->NumParams = in->NumParams) > 0 )
@@ -2000,37 +2041,46 @@ code to synchronise this problem.
 
 static int
 get_sql_text(context *ctxt, term_t tquery)
-{ size_t qlen;
-  SQLWCHAR *q;
-  wchar_t *ws;
-
-  if ( PL_is_functor(tquery, FUNCTOR_minus2) )
-  { qlen = 0;
-    q = NULL;
-
-    if ( !formatted_wstring(tquery, &qlen, &q) )
+{ if ( PL_is_functor(tquery, FUNCTOR_minus2) )
+  { if ( !formatted_string(ctxt, tquery) )
       return FALSE;
-    ctxt->sqltext = q;
-    ctxt->sqllen = (SQLINTEGER)qlen;
-    set(ctxt, CTX_SQLMALLOCED);
-  } else if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING))
-  {
-#if SIZEOF_SQLWCHAR != SIZEOF_WCHAR_T
-    wchar_t *es = ws+qlen;
-    SQLWCHAR *o;
-
-    q = PL_malloc((qlen+1)*sizeof(SQLWCHAR));
-    for(o=q; ws<es;)
-      *o++ = *ws++;
-    *o = 0;
-#else
-    q = (SQLWCHAR *)ws;
-#endif
-    ctxt->sqltext = q;
-    ctxt->sqllen = (SQLINTEGER)qlen;
-    set(ctxt, CTX_SQLMALLOCED);
   } else
-    return type_error(tquery, "atom_or_format");
+  { size_t qlen;
+
+    if ( ctxt->connection->encoding == ENC_SQLWCHAR )
+    { SQLWCHAR *q;
+      wchar_t *ws;
+
+      if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING))
+      {
+#if SIZEOF_SQLWCHAR != SIZEOF_WCHAR_T
+        wchar_t *es = ws+qlen;
+        SQLWCHAR *o;
+
+	q = PL_malloc((qlen+1)*sizeof(SQLWCHAR));
+	for(o=q; ws<es;)
+	  *o++ = *ws++;
+	*o = 0;
+#else
+        q = (SQLWCHAR *)ws;
+#endif
+        ctxt->sqltext.w = q;
+	ctxt->sqllen = (SQLINTEGER)qlen;
+	ctxt->char_width = sizeof(SQLWCHAR);
+	set(ctxt, CTX_SQLMALLOCED);
+      } else
+	return type_error(tquery, "atom_or_format");
+    } else
+    { char *s;
+      int rep = enc_to_rep(ctxt->connection->encoding);
+
+      if ( PL_get_nchars(tquery, &qlen, &s, CVT_ATOM|CVT_STRING|rep))
+      { ctxt->sqltext.a = (unsigned char*)s;
+	ctxt->sqllen = (SQLINTEGER)qlen;
+	ctxt->char_width = sizeof(char);
+      }
+    }
+  }
 
   return TRUE;
 }
@@ -2446,9 +2496,15 @@ pl_odbc_query(term_t dsn, term_t tquery, term_t trow, term_t options,
 	return FALSE;
       }
       set(ctxt, CTX_INUSE);
-      TRY(ctxt,
-	  SQLExecDirectW(ctxt->hstmt, ctxt->sqltext, ctxt->sqllen),
-	  close_context(ctxt));
+      if ( ctxt->char_width == 1 )
+      { TRY(ctxt,
+	    SQLExecDirectA(ctxt->hstmt, ctxt->sqltext.a, ctxt->sqllen),
+	    close_context(ctxt));
+      } else
+      { TRY(ctxt,
+	    SQLExecDirectW(ctxt->hstmt, ctxt->sqltext.w, ctxt->sqllen),
+	    close_context(ctxt));
+      }
 
       return odbc_row(ctxt, trow);
     }
@@ -2923,9 +2979,15 @@ odbc_prepare(term_t dsn, term_t sql, term_t parms, term_t qid, term_t options)
     return FALSE;
   }
 
-  TRY(ctxt,
-      SQLPrepareW(ctxt->hstmt, ctxt->sqltext, ctxt->sqllen),
-      close_context(ctxt));
+  if ( ctxt->char_width == 1 )
+  { TRY(ctxt,
+	SQLPrepareA(ctxt->hstmt, ctxt->sqltext.a, ctxt->sqllen),
+	close_context(ctxt));
+  } else
+  { TRY(ctxt,
+	SQLPrepareW(ctxt->hstmt, ctxt->sqltext.w, ctxt->sqllen),
+	close_context(ctxt));
+  }
 
   if ( !declare_parameters(ctxt, parms) )
   { free_context(ctxt);
