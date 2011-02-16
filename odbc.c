@@ -2750,7 +2750,7 @@ declare_parameters(context *ctxt, term_t parms)
 
     switch(params->cTypeID)
     { case SQL_C_WCHAR:
-        character_size = sizeof(wchar_t);
+        character_size = sizeof(SQLWCHAR);
         /* FALLTHROUGH */
       case SQL_C_CHAR:
       case SQL_C_BINARY:
@@ -3808,7 +3808,7 @@ pl_put_column(context *c, int nth, term_t col)
 	rc = put_chars(val, p->plTypeID, REP_MB,
 		       p->length_ind, (char*)p->ptr_value);
         break;
-    case SQL_C_WCHAR:
+      case SQL_C_WCHAR:
   	rc = put_wchars(val, p->plTypeID,
 			p->length_ind/sizeof(SQLWCHAR), (SQLWCHAR*)p->ptr_value);
         break;
