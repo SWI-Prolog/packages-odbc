@@ -2068,13 +2068,13 @@ get_sql_text(context *ctxt, term_t tquery)
 	for(o=q; ws<es;)
 	  *o++ = *ws++;
 	*o = 0;
+	set(ctxt, CTX_SQLMALLOCED);
 #else
         q = (SQLWCHAR *)ws;
 #endif
         ctxt->sqltext.w = q;
 	ctxt->sqllen = (SQLINTEGER)qlen;
 	ctxt->char_width = sizeof(SQLWCHAR);
-	set(ctxt, CTX_SQLMALLOCED);
       } else
 	return type_error(tquery, "atom_or_format");
     } else
@@ -2085,7 +2085,8 @@ get_sql_text(context *ctxt, term_t tquery)
       { ctxt->sqltext.a = (unsigned char*)s;
 	ctxt->sqllen = (SQLINTEGER)qlen;
 	ctxt->char_width = sizeof(char);
-      }
+      } else
+	return type_error(tquery, "atom_or_format");
     }
   }
 
