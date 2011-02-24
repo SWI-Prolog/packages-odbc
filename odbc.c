@@ -660,6 +660,8 @@ enc_to_rep(IOENC enc)
       return REP_MB;
     case ENC_UTF8:
       return REP_UTF8;
+    case ENC_SQLWCHAR:
+      return 0;				/* not used for wide characters */
     default:
       assert(0);
   }
