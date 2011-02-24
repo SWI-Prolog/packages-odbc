@@ -2057,24 +2057,23 @@ get_sql_text(context *ctxt, term_t tquery)
   { size_t qlen;
 
     if ( ctxt->connection->encoding == ENC_SQLWCHAR )
-    { SQLWCHAR *q;
-      wchar_t *ws;
+    { wchar_t *ws;
 
-      if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING))
-      {
 #if SIZEOF_SQLWCHAR != SIZEOF_WCHAR_T
-        wchar_t *es = ws+qlen;
-        SQLWCHAR *o;
+      if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING))
+      { wchar_t *es = ws+qlen;
+        SQLWCHAR *o, *q;
 
 	q = PL_malloc((qlen+1)*sizeof(SQLWCHAR));
 	for(o=q; ws<es;)
 	  *o++ = *ws++;
 	*o = 0;
-	set(ctxt, CTX_SQLMALLOCED);
+	ctxt->sqltext.w = q;
 #else
-        q = (SQLWCHAR *)ws;
+      if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING|BUF_MALLOC))
+      { ctxt->sqltext.w = (SQLWCHAR *)ws;
 #endif
-        ctxt->sqltext.w = q;
+	set(ctxt, CTX_SQLMALLOCED);
 	ctxt->sqllen = (SQLINTEGER)qlen;
 	ctxt->char_width = sizeof(SQLWCHAR);
       } else
@@ -2083,10 +2082,11 @@ get_sql_text(context *ctxt, term_t tquery)
     { char *s;
       int rep = ctxt->connection->rep_flag;
 
-      if ( PL_get_nchars(tquery, &qlen, &s, CVT_ATOM|CVT_STRING|rep))
+      if ( PL_get_nchars(tquery, &qlen, &s, CVT_ATOM|CVT_STRING|BUF_MALLOC|rep))
       { ctxt->sqltext.a = (unsigned char*)s;
 	ctxt->sqllen = (SQLINTEGER)qlen;
 	ctxt->char_width = sizeof(char);
+	set(ctxt, CTX_SQLMALLOCED);
       } else
 	return type_error(tquery, "atom_or_format");
     }
