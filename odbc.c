@@ -3741,6 +3741,7 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_TYPE_TIME:
 	  return SQL_C_TYPE_TIME;
 	case SQL_TIMESTAMP:
+	case SQL_TYPE_TIMESTAMP:
 	  return SQL_C_TIMESTAMP;
 	default:
 	  if ( !true(ctxt, CTX_SILENT) )
