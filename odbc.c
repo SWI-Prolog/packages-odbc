@@ -2677,8 +2677,8 @@ odbc_data_sources(term_t list)
     { case SQL_SUCCESS:
       { if ( PL_unify_list(tail, head, tail) &&
 	     PL_unify_term(head, PL_FUNCTOR, FUNCTOR_data_source2,
-			           PL_NCHARS, dsnlen, dsn,
-			           PL_NCHARS, dlen, description) )
+			           PL_NCHARS, (size_t)dsnlen, dsn,
+			           PL_NCHARS, (size_t)dlen, description) )
 	  continue;
 
 	return FALSE;
