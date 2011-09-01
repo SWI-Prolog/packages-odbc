@@ -24,18 +24,33 @@ if test ! -z "$ODBC_DIR"; then
 fi
 
 havelib=no
-AC_CHECK_LIB(odbc, SQLAllocEnv,
-	     LIBS="-lodbc $LIBS"
-	     havelib=yes)
-if test $havelib = no; then
-  AC_CHECK_LIB(iodbc, SQLAllocEnv,
-	       LIBS="-liodbc $LIBS"
-	       havelib=yes)
-fi
+case "$PLARCH" in
+    *-mingw32*)
+        LIBS="-lodbc32 $LIBS"
+        havelib=yes
+        ;;
+    *)
+        if test $havelib = no; then
+          AC_CHECK_LIB(odbc, SQLAllocEnv,
+                       LIBS="-lodbc $LIBS"
+                       havelib=yes)
+          if test $havelib = no; then
+            AC_CHECK_LIB(iodbc, SQLAllocEnv,
+                         LIBS="-liodbc $LIBS"
+                         havelib=yes)
+          fi
+        fi
+esac
 
 AC_C_BIGENDIAN
 
-AC_CHECK_HEADERS(malloc.h sql.h time.h)
+AC_CHECK_HEADERS(malloc.h time.h)
+AC_CHECK_HEADERS(sql.h, [], [],
+[[
+#ifdef __WINDOWS__
+#include <windef.h>
+#endif
+]])
 AC_CHECK_FUNCS(localtime mktime gmtime timegm)
 AC_CHECK_TYPES([long long])
 AC_CHECK_SIZEOF(long, 4)
