@@ -36,6 +36,9 @@ Stefano  De  Giorgi  (s.degiorgi@tin.it).
 
 #ifdef __WINDOWS__
 #include <windows.h>
+#endif
+
+#ifdef _MSC_VER
 #define HAVE_MKTIME 1
 #define HAVE_GMTIME 1
 #undef WORDS_BIGENDIAN
