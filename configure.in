@@ -26,7 +26,7 @@ fi
 havelib=no
 case "$PLARCH" in
     i386-win32|x64-win64)
-        LIBS="-lodbc32 $LIBS"
+        AC_CHECK_LIB(odbc32, main)
         havelib=yes
         ;;
     *)
@@ -55,12 +55,20 @@ AC_CHECK_FUNCS(localtime mktime gmtime timegm)
 AC_CHECK_TYPES([long long])
 AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(SQLWCHAR, 2,
-		[ #include <sql.h>
-		])
+[[
+#ifdef __WINDOWS__
+#include <windef.h>
+#endif
+#include <sql.h>
+]])
 AC_CHECK_SIZEOF(wchar_t, 4)
 AC_CHECK_TYPES([SQLLEN, SQLULEN],,,
-	       [#include <sql.h>
-	       ])
+[[
+#ifdef __WINDOWS__
+#include <windef.h>
+#endif
+#include <sql.h>
+]])
 
 if test "$havelib" = yes &&
    test "$ac_cv_header_sql_h" = yes; then
