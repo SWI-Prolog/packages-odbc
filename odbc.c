@@ -667,6 +667,7 @@ enc_to_rep(IOENC enc)
       return 0;				/* not used for wide characters */
     default:
       assert(0);
+      return 0;
   }
 }
 
@@ -741,11 +742,11 @@ formatted_string(context *ctxt, term_t in)
 
   if ( ctxt->connection->encoding == ENC_SQLWCHAR )
   { ctxt->sqltext.w = (SQLWCHAR*)out;
-    ctxt->sqllen = len/sizeof(SQLWCHAR);
+    ctxt->sqllen = (SQLINTEGER)(len/sizeof(SQLWCHAR));	/* TBD: Check range */
     ctxt->char_width = sizeof(SQLWCHAR);
   } else
   { ctxt->sqltext.a = (unsigned char*)out;
-    ctxt->sqllen = len;
+    ctxt->sqllen = (SQLINTEGER)len;			/* TBD: Check range */
     ctxt->char_width = sizeof(char);
   }
   set(ctxt, CTX_SQLMALLOCED);
@@ -1993,8 +1994,8 @@ clone_context(context *in)
 
       TRY(new, SQLBindParameter(new->hstmt,		/* hstmt */
 				(SWORD)pn,			/* ipar */
-				SQL_PARAM_INPUT, 	/* fParamType */
-				p->cTypeID, 		/* fCType */
+				SQL_PARAM_INPUT,	/* fParamType */
+				p->cTypeID,		/* fCType */
 				p->sqlTypeID,		/* fSqlType */
 				p->length_ind,		/* cbColDef */
 				p->scale,		/* ibScale */
@@ -2970,7 +2971,7 @@ declare_parameters(context *ctxt, term_t parms)
 			       params->scale,		/* ibScale */
 			       params->ptr_value,	/* rgbValue */
 			       0,			/* cbValueMax */
-			       vlenptr), 		/* pcbValue */
+			       vlenptr),		/* pcbValue */
 	(void)0);
   }
 
@@ -3259,7 +3260,7 @@ bind_parameters(context *ctxt, term_t parms)
 #endif
 	} else
 	{ int rep = (prm->cTypeID == SQL_C_CHAR ? ctxt->connection->rep_flag
-		     				: REP_ISO_LATIN_1);
+						: REP_ISO_LATIN_1);
 
 	  if ( !PL_get_nchars(head, &l, &s, flags|rep) )
 	    return type_error(head, expected);
@@ -3975,7 +3976,7 @@ pl_put_column(context *c, int nth, term_t col)
 		       p->length_ind, (char*)p->ptr_value);
         break;
       case SQL_C_WCHAR:
-  	rc = put_wchars(val, p->plTypeID,
+	rc = put_wchars(val, p->plTypeID,
 			p->length_ind/sizeof(SQLWCHAR), (SQLWCHAR*)p->ptr_value);
         break;
       case SQL_C_BINARY:
