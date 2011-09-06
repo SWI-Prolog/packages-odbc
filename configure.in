@@ -25,14 +25,7 @@ fi
 
 havelib=no
 case "$PLARCH" in
-    i386-win32|x64-win64)
-        AC_CHECK_LIB(pthreadGC2, pthread_create)
-        if test ! "$ac_cv_lib_pthreadGC2_pthread_create" = "yes"; then
-          AC_CHECK_LIB(pthreadGC, pthread_create)
-          if test ! "$ac_cv_lib_pthreadGC_pthread_create" = "yes"; then
-            AC_CHECK_LIB(pthread, pthread_create)
-          fi
-        fi
+    *-win32|*-win64)
         AC_CHECK_LIB(odbc32, main,
                      LIBS="-lodbc32 $LIBS"
                      havelib=yes)
