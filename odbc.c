@@ -1451,16 +1451,20 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 				SQL_COPT_SS_MARS_ENABLED,
 				SQL_MARS_ENABLED_YES,
 				SQL_IS_UINTEGER)) != SQL_SUCCESS )
-     return odbc_report(henv, NULL, NULL, rc);
+     { SQLFreeConnect(hdbc);
+       return odbc_report(henv, NULL, NULL, rc);
+     }
    }
 
    /* Connect to a data source. */
    if ( driver_string != NULL )
    { if ( uid != NULL )
-     { return context_error(options, "Option incompatible with driver_string",
+     { SQLFreeConnect(hdbc);
+       return context_error(options, "Option incompatible with driver_string",
 			    "user");
      } else if ( pwd != NULL )
-     { return context_error(options, "Option incompatible with driver_string",
+     { SQLFreeConnect(hdbc);
+       return context_error(options, "Option incompatible with driver_string",
 			    "password");
      } else
      { SQLCHAR connection_out[1025];	/* completed driver string */
@@ -1479,12 +1483,18 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
                            (SQLCHAR *)pwd,     SQL_NTS);
    }
    if ( rc == SQL_ERROR )
+   { SQLFreeConnect(hdbc);
      return odbc_report(henv, hdbc, NULL, rc);
+   }
    if ( rc != SQL_SUCCESS && !silent && !odbc_report(henv, hdbc, NULL, rc) )
+   { SQLFreeConnect(hdbc);
      return FALSE;
+   }
 
    if ( !(cn=alloc_connection(alias, dsn)) )
+   { SQLFreeConnect(hdbc);
      return FALSE;
+   }
    if ( silent )
      set(cn, CTX_SILENT);
 
@@ -1493,14 +1503,16 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    cn->hdbc     = hdbc;
 
    if ( !unify_connection(cid, cn) )
-   { free_connection(cn);
+   { SQLFreeConnect(hdbc);
+     free_connection(cn);
      return FALSE;
    }
 
    DEBUG(3, Sdprintf("Processing %d `after' options\n", nafter));
    for(i=0; i<nafter; i++)
    { if ( !odbc_set_connection(cn, after_open+i) )
-     { free_connection(cn);
+     { SQLFreeConnect(hdbc);
+       free_connection(cn);
        return FALSE;
      }
    }
@@ -1845,6 +1857,7 @@ new_context(connection *cn)
   ctxt->max_nogetdata = cn->max_nogetdata;
   if ( (rc=SQLAllocStmt(cn->hdbc, &ctxt->hstmt)) != SQL_SUCCESS )
   { odbc_report(henv, cn->hdbc, NULL, rc);
+    free(ctxt);
     return NULL;
   }
   statistics.statements_created++;
