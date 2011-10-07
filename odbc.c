@@ -1296,26 +1296,26 @@ free_connection(connection *c)
 
 
 static int
-get_connection(term_t tdsn, connection **cn)
-{ atom_t dsn;
+get_connection(term_t tcid, connection **cn)
+{ atom_t alias;
   connection *c;
 
-  if ( PL_is_functor(tdsn, FUNCTOR_odbc_connection1) )
+  if ( PL_is_functor(tcid, FUNCTOR_odbc_connection1) )
   { term_t a = PL_new_term_ref();
     void *ptr;
 
-    _PL_get_arg(1, tdsn, a);
+    _PL_get_arg(1, tcid, a);
     if ( !PL_get_pointer(a, &ptr) )
-      return type_error(tdsn, "odbc_connection");
+      return type_error(tcid, "odbc_connection");
     c = ptr;
 
     if ( !c->magic == CON_MAGIC )
-      return existence_error(tdsn, "odbc_connection");
+      return existence_error(tcid, "odbc_connection");
   } else
-  { if ( !PL_get_atom(tdsn, &dsn) )
-      return type_error(tdsn, "odbc_connection");
-    if ( !(c=find_connection(dsn)) )
-      return existence_error(tdsn, "odbc_connection");
+  { if ( !PL_get_atom(tcid, &alias) )
+      return type_error(tcid, "odbc_connection");
+    if ( !(c=find_connection(alias)) )
+      return existence_error(tcid, "odbc_connection");
   }
 
   *cn = c;
@@ -1521,10 +1521,10 @@ odbc_disconnect(+Connection)
 
 
 static foreign_t
-pl_odbc_disconnect(term_t dsn)
+pl_odbc_disconnect(term_t conn)
 { connection *cn;
 
-  if ( !get_connection(dsn, &cn) )
+  if ( !get_connection(conn, &cn) )
     return FALSE;
 
   TRY_CN(cn, SQLDisconnect(cn->hdbc));  /* Disconnect from the data source */
@@ -2481,13 +2481,13 @@ set_statement_options(context *ctxt, term_t options)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-odbc_query(+DSN, +SQL, -Row)
+odbc_query(+Conn, +SQL, -Row)
     Execute an SQL query, returning the result-rows 1-by-1 on
     backtracking
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static foreign_t
-pl_odbc_query(term_t dsn, term_t tquery, term_t trow, term_t options,
+pl_odbc_query(term_t conn, term_t tquery, term_t trow, term_t options,
 	      control_t handle)
 { context *ctxt;
 
@@ -2495,7 +2495,7 @@ pl_odbc_query(term_t dsn, term_t tquery, term_t trow, term_t options,
   { case PL_FIRST_CALL:
     { connection *cn;
 
-      if ( !get_connection(dsn, &cn) )
+      if ( !get_connection(conn, &cn) )
 	return FALSE;
 
       if ( !(ctxt = new_context(cn)) )
@@ -2538,13 +2538,13 @@ pl_odbc_query(term_t dsn, term_t tquery, term_t trow, term_t options,
 		 *******************************/
 
 static foreign_t
-odbc_tables(term_t dsn, term_t row, control_t handle)
+odbc_tables(term_t conn, term_t row, control_t handle)
 { switch( PL_foreign_control(handle) )
   { case PL_FIRST_CALL:
     { connection *cn;
       context *ctxt;
 
-      if ( !get_connection(dsn, &cn) )
+      if ( !get_connection(conn, &cn) )
 	return FALSE;
 
       if ( !(ctxt = new_context(cn)) )
@@ -2572,7 +2572,7 @@ odbc_tables(term_t dsn, term_t row, control_t handle)
 
 
 static foreign_t
-pl_odbc_column(term_t dsn, term_t db, term_t row, control_t handle)
+pl_odbc_column(term_t conn, term_t db, term_t row, control_t handle)
 { switch( PL_foreign_control(handle) )
   { case PL_FIRST_CALL:
     { connection *cn;
@@ -2580,7 +2580,7 @@ pl_odbc_column(term_t dsn, term_t db, term_t row, control_t handle)
       size_t len;
       char *s;
 
-      if ( !get_connection(dsn, &cn) )
+      if ( !get_connection(conn, &cn) )
 	return FALSE;
 					/* TBD: Unicode version */
       if ( !PL_get_nchars(db, &len, &s, CVT_ATOM|CVT_STRING|cn->rep_flag) )
@@ -2612,7 +2612,7 @@ pl_odbc_column(term_t dsn, term_t db, term_t row, control_t handle)
 
 
 static foreign_t
-odbc_types(term_t dsn, term_t sqltype, term_t row, control_t handle)
+odbc_types(term_t conn, term_t sqltype, term_t row, control_t handle)
 { switch( PL_foreign_control(handle) )
   { case PL_FIRST_CALL:
     { connection *cn;
@@ -2632,7 +2632,7 @@ odbc_types(term_t dsn, term_t sqltype, term_t row, control_t handle)
 	  return domain_error(sqltype, "sql_type");
       }
 
-      if ( !get_connection(dsn, &cn) )
+      if ( !get_connection(conn, &cn) )
 	return FALSE;
       if ( !(ctxt = new_context(cn)) )
 	return FALSE;
@@ -2980,11 +2980,11 @@ declare_parameters(context *ctxt, term_t parms)
 
 
 static foreign_t
-odbc_prepare(term_t dsn, term_t sql, term_t parms, term_t qid, term_t options)
+odbc_prepare(term_t conn, term_t sql, term_t parms, term_t qid, term_t options)
 { connection *cn;
   context *ctxt;
 
-  if ( !get_connection(dsn, &cn) )
+  if ( !get_connection(conn, &cn) )
     return FALSE;
 
   if ( !(ctxt = new_context(cn)) )
