@@ -1483,8 +1483,9 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
                            (SQLCHAR *)pwd,     SQL_NTS);
    }
    if ( rc == SQL_ERROR )
-   { SQLFreeConnect(hdbc);
-     return odbc_report(henv, hdbc, NULL, rc);
+   { odbc_report(henv, hdbc, NULL, rc);
+     SQLFreeConnect(hdbc);
+     return FALSE;
    }
    if ( rc != SQL_SUCCESS && !silent && !odbc_report(henv, hdbc, NULL, rc) )
    { SQLFreeConnect(hdbc);
