@@ -7,8 +7,8 @@
 \makeindex
 
 \onefile
-\htmloutput{html}				% Output directory
-\htmlmainfile{index}				% Main document file
+\htmloutput{.}					% Output directory
+\htmlmainfile{odbc}				% Main document file
 \bodycolor{white}				% Page colour
 
 \renewcommand{\runningtitle}{SWI-Prolog ODBC Interface}
