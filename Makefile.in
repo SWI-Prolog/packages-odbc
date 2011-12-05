@@ -9,40 +9,14 @@
 # Author: Jan Wielemaker (jan@swi.psy.uva.nl)
 ################################################################
 
-.SUFFIXES: .tex .dvi .doc .pl
+PACKAGE=odbc
+DOC=odbc
+include ../Makefile.defs
 
-PL=@PL@
-PLBASE=@PLBASE@
-PLARCH=@PLARCH@
-PLINCL=@PLINCL@
-PKGDOC=$(PLBASE)/doc/packages
-PCEHOME=../xpce
-SOLIB=@SOLIB@
+CFLAGS+= -I.
 
-CC=@CC@
-COFLAGS=@COFLAGS@
-CWFLAGS=@CWFLAGS@
-CMFLAGS=@CMFLAGS@
-CIFLAGS=@CIFLAGS@ -I.
-CFLAGS=$(COFLAGS) $(CWFLAGS) $(CMFLAGS) $(CIFLAGS) @DEFS@
 LIBS=@LIBS@
 NETLIBS=@NETLIBS@
-
-DOCTOTEX=$(PCEHOME)/bin/doc2tex
-PLTOTEX=$(PCEHOME)/bin/pl2tex
-DOC=odbc
-TEX=$(DOC).tex
-DVI=$(DOC).dvi
-PDF=$(DOC).pdf
-RUNTEX=../../man/runtex
-
-LD=@LD@
-LDFLAGS=@LDSOFLAGS@ @LDFLAGS@
-
-INSTALL=@INSTALL@
-INSTALL_PROGRAM=@INSTALL_PROGRAM@
-INSTALL_DATA=@INSTALL_DATA@
-INSTALL_PLARCH=@INSTALL_PLARCH@
 
 LIBPL=		@PLTARGETS@
 TARGETS=	@TARGETS@
@@ -52,15 +26,15 @@ ODBCOBJ=	odbc.o
 all:		$(TARGETS)
 
 odbc4pl.@SO@:	$(ODBCOBJ)
-		$(LD) $(LDFLAGS) -o $@ $(ODBCOBJ) $(LIBS)
+		$(LD) $(LDSOFLAGS) -o $@ $(ODBCOBJ) $(LIBS)
 
 install:	$(TARGETS) $(LIBPL)
-		mkdir -p $(DESTDIR)$(PLBASE)/$(SOLIB)/$(INSTALL_PLARCH)
+		mkdir -p $(DESTDIR)$(SOLIBDIR)
 		for f in $(TARGETS); do \
-		  $(INSTALL_PROGRAM) $$f $(DESTDIR)$(PLBASE)/$(SOLIB)/$(INSTALL_PLARCH); \
+		  $(INSTALL_PROGRAM) $$f $(DESTDIR)$(SOLIBDIR); \
 		done
 		for f in $(LIBPL); do \
-		  $(INSTALL_DATA) $$f $(DESTDIR)$(PLBASE)/library; \
+		  $(INSTALL_DATA) $$f $(DESTDIR)$(PLLIBDIR); \
 		done
 		$(PL) -f none -g make -t halt
 
@@ -70,41 +44,17 @@ ln-install::
 rpm-install:	install
 
 html-install::
-		mkdir -p $(DESTDIR)$(PKGDOC)
-		$(INSTALL) -m 644 $(DOC).html $(DESTDIR)$(PKGDOC)
+		mkdir -p $(DESTDIR)$(PKGDOCDIR)
+		$(INSTALL) -m 644 $(DOC).html $(DESTDIR)$(PKGDOCDIR)
 
 pdf-install::
-		mkdir -p $(DESTDIR)$(PKGDOC)
-		$(INSTALL) -m 644 $(DOC).pdf $(DESTDIR)$(PKGDOC)
+		mkdir -p $(DESTDIR)$(PKGDOCDIR)
+		$(INSTALL) -m 644 $(DOC).pdf $(DESTDIR)$(PKGDOCDIR)
 
 uninstall::
-		(cd $(PLBASE)/$(SOLIB)/$(INSTALL_PLARCH) && rm -f $(TARGETS))
-		(cd $(PLBASE)/library && rm -f $(LIBPL))
+		(cd $(SOLIBDIR) && rm -f $(TARGETS))
+		(cd $(PLLIBDIR) && rm -f $(LIBPL))
 		$(PL) -f none -g make -t halt
-
-################################################################
-# Documentation
-################################################################
-
-pdf:		$(PDF)
-
-$(DVI):		$(TEX)
-		$(RUNTEX) $(DOC)
-
-$(PDF):		$(TEX)
-		$(RUNTEX) --pdf $(DOC)
-
-html:		$(TEX)
-		latex2html $(DOC)
-		mv html/index.html $(DOC).html
-		rm -r html
-
-$(TEX):		$(DOCTOTEX)
-
-.doc.tex:
-		$(DOCTOTEX) $*.doc > $*.tex
-.pl.tex:
-		$(PLTOTEX) $*.pl > $*.tex
 
 ################################################################
 # Check
