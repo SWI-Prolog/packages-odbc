@@ -6,6 +6,8 @@ AC_CONFIG_HEADER(config.h)
 
 AC_SUBST(TARGETS)
 AC_SUBST(PLTARGETS)
+AC_SUBST(ODBC_CFLAGS)
+AC_SUBST(ODBC_LDFLAGS)
 
 m4_include([../ac_swi_c.m4])
 
@@ -17,6 +19,8 @@ AC_ARG_WITH(odbc,[  --with-odbc=<dir>	  Location of ODBC include/lib],
 	esac])
 
 if test ! -z "$ODBC_DIR"; then
+  ODBC_CFLAGS="-I${ODBC_DIR}/include"
+  ODBC_LDFLAGS="-L${ODBC_DIR}/lib"
   CFLAGS="-I${ODBC_DIR}/include ${CFLAGS}"
   CPPFLAGS="-I${ODBC_DIR}/include ${CPPFLAGS}"
   CIFLAGS="-I${ODBC_DIR}/include ${CIFLAGS}"

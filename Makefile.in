@@ -13,7 +13,8 @@ PACKAGE=odbc
 DOC=odbc
 include ../Makefile.defs
 
-CFLAGS+= -I.
+CFLAGS+= @ODBC_CFLAGS@ -I.
+LDSOFLAGS+= @ODBC_LDFLAGS@
 
 LIBS=@LIBS@
 NETLIBS=@NETLIBS@
