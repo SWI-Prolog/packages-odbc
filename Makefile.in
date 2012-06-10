@@ -27,7 +27,7 @@ ODBCOBJ=	odbc.o
 all:		$(TARGETS)
 
 odbc4pl.@SO@:	$(ODBCOBJ)
-		$(LD) $(LDSOFLAGS) -o $@ $(ODBCOBJ) $(LIBS)
+		$(LD) $(LDSOFLAGS) -o $@ $(ODBCOBJ)  $(LIBPLSO) $(LIBS)
 
 install:	$(TARGETS) $(LIBPL)
 		mkdir -p $(DESTDIR)$(SOLIBDIR)
