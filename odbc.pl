@@ -68,7 +68,15 @@
 
 :- use_foreign_library(foreign(odbc4pl)).
 
-% %	odbc_driver_connect(+DriverString, -Connection, +Options) is det.
+%%	odbc_current_connection(?Conn, ?DSN) is nondet.
+%
+%	True if Conn is an open ODBC connection to DSN.
+
+odbc_current_connection(Conn, DSN) :-
+	odbc_current_connections(Conn, DSN, Pairs),
+	member(Conn-DSN, Pairs).
+
+%%	odbc_driver_connect(+DriverString, -Connection, +Options) is det.
 %
 %	Connects to a database using SQLDriverConnect(). This API allows
 %	for driver-specific additional options.   DriverString is passed

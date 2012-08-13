@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        J.Wielemaker@cs.vu.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 1985-2010, University of Amsterdam, VU University Amsterdam
+    Copyright (C): 1985-2012, University of Amsterdam,
+			      VU University Amsterdam
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -1548,45 +1547,55 @@ pl_odbc_disconnect(term_t conn)
 }
 
 
+static int
+add_cid_dsn_pair(term_t list, connection *cn)
+{ term_t cnterm = PL_new_term_ref();
+  term_t head = PL_new_term_ref();
+
+  if ( PL_unify_list(list, head, list) &&
+       unify_connection(cnterm, cn) &&
+       PL_unify_term(head, PL_FUNCTOR, FUNCTOR_minus2,
+		             PL_TERM, cnterm,
+		             PL_ATOM, cn->dsn) )
+  { PL_reset_term_refs(cnterm);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
 static foreign_t
-odbc_current_connection(term_t cid, term_t dsn, control_t h)
-{ connection *cn;
+odbc_current_connections(term_t cid, term_t dsn, term_t pairs)
+{ atom_t dsn_a;
+  term_t tail = PL_copy_term_ref(pairs);
+  connection *cn;
 
-  switch(PL_foreign_control(h))
-  { case PL_FIRST_CALL:
-      if ( !PL_is_variable(cid) )
-      { if ( get_connection(cid, &cn) &&
-	     PL_unify_atom(dsn, cn->dsn) )
-	  return TRUE;
+  if ( !PL_get_atom(dsn, &dsn_a) )
+    dsn_a = 0;
 
+  if ( !PL_is_variable(cid) )
+  { if ( get_connection(cid, &cn) &&
+	 (!dsn_a || cn->dsn == dsn_a) )
+      return ( add_cid_dsn_pair(tail, cn) &&
+	       PL_unify_nil(tail)
+	     );
+
+    return FALSE;
+  }
+
+  LOCK();
+  for(cn=connections; cn; cn=cn->next)
+  { if ( (!dsn_a || cn->dsn == dsn_a) )
+    { if ( !add_cid_dsn_pair(tail, cn) )
+      { UNLOCK();
 	return FALSE;
       }
-
-      cn = connections;
-      goto next;
-
-    case PL_REDO:
-      cn = PL_foreign_context_address(h);
-    next:
-    { fid_t fid = PL_open_foreign_frame();
-
-      for(; cn; cn = cn->next, PL_rewind_foreign_frame(fid))
-      { if ( unify_connection(cid, cn) &&
-	     PL_unify_atom(dsn, cn->dsn) )
-	{ PL_close_foreign_frame(fid);
-	  if ( cn->next )
-	    PL_retry_address(cn->next);
-	  return TRUE;
-	}
-      }
-
-      PL_close_foreign_frame(fid);
-      return FALSE;
     }
-
-    default:
-      return FALSE;
   }
+  UNLOCK();
+
+  return PL_unify_nil(tail);
 }
 
 
@@ -3669,7 +3678,7 @@ install_odbc4pl()
 
    DET("odbc_connect",		   3, pl_odbc_connect);
    DET("odbc_disconnect",	   1, pl_odbc_disconnect);
-   NDET("odbc_current_connection", 2, odbc_current_connection);
+   DET("odbc_current_connections", 3, odbc_current_connections);
    DET("odbc_set_connection",	   2, pl_odbc_set_connection);
    NDET("odbc_get_connection",	   2, odbc_get_connection);
    DET("odbc_end_transaction",	   2, odbc_end_transaction);
