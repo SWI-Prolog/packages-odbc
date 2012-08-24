@@ -569,6 +569,18 @@ odbc_malloc(size_t bytes)
 }
 
 
+static void *
+odbc_realloc(void* inptr, size_t bytes)
+{ void *ptr = realloc(inptr, bytes);
+
+  if ( !ptr )
+  { free(inptr);
+    resource_error("memory");
+  }
+
+  return ptr;
+}
+
 
 		 /*******************************
 		 *	     PRIMITIVES		*
@@ -3927,9 +3939,40 @@ pl_put_column(context *c, int nth, term_t col)
 	  return FALSE;
 	goto ok;
       } else if ( len == SQL_NO_TOTAL )
-      { /* Don't know what to do here */
-	return PL_warning("No support for SQL_NO_TOTAL.\n"
-			  "Please report to bugs@swi-prolog.org");
+      { int pad = p->cTypeID == SQL_C_CHAR ? 1 : 0;
+        int readsofar = sizeof(buf) - pad;
+        SQLLEN bufsize = 2048;			/* must be > sizeof(buf) */
+
+	if ( !(data = odbc_malloc(bufsize)) )
+	  return FALSE;
+        memcpy(data, buf, sizeof(buf));
+
+        do /* Read blocks */
+        { c->rc = SQLGetData(c->hstmt, (UWORD)(nth+1), p->cTypeID,
+			     &data[readsofar], bufsize-readsofar, &len);
+          if ( c->rc == SQL_ERROR )
+          { DEBUG(1, Sdprintf("SQLGetData() returned %d\n", c->rc));
+	    return report_status(c);
+          } else if ( len == SQL_NO_DATA )	/* Previous block was final one */
+          { len += readsofar;
+	    goto got_all_data;
+          } else if ( len == SQL_NO_TOTAL )	/* More blocks are yet to come */
+          { int chunk = bufsize-readsofar-pad;
+	    readsofar += chunk;
+	    bufsize *= 2;
+	    if ( !(data = odbc_realloc(data, bufsize)) )
+	      return FALSE;
+          } else if ( len <= bufsize-readsofar ) /* This block is the last one */
+          { len += readsofar;
+	    goto got_all_data;
+          } else				/* Is this possible? */
+	  { readsofar+= len;			/* It is analgous to the case */
+	    bufsize *= 2;			/* below where SQL_NO_TOTAL is */
+	    if ( !(data = odbc_realloc(data, bufsize)) ) /* not returned */
+	      return FALSE;
+	  }
+        } while(c->rc != SQL_SUCCESS && c->rc != SQL_NO_DATA);
+        len = readsofar;
       } else if ( len >= (SDWORD)sizeof(buf) )
       { int pad = p->cTypeID == SQL_C_CHAR ? 1 : 0;
 	size_t todo = len-sizeof(buf)+2*pad;
