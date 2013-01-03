@@ -703,6 +703,14 @@ Minimum scale of the type.
     \termitem{maximum_scale}{MaxScale}
 Maximum scale of the type.
 \end{description}
+
+    \predicate{odbc_table_primary_key}{3}{+Connection, +Table, ?Column}
+True when \arg{Column} is a primary key in \arg{Table}.
+
+    \predicate{odbc_table_foreign_key}{5}{+Connection, ?PkTable, ?PkCol,
+				          ?FkTable, ?FkCol}
+True when \arg{PkTable}/\arg{PkCol} \arg{FkTable}/\arg{FkCol} is a
+foreign keys column.
 \end{description}
 
 
