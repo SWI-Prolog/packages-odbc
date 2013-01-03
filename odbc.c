@@ -324,6 +324,9 @@ static struct
 #define CTX_GOT_QLEN	0x0400		/* got SQL_MAX_QUALIFIER_NAME_LEN */
 #define CTX_NOAUTO	0x0800		/* fetch by hand */
 
+#define CTX_PRIMARYKEY	0x1000		/* this is an SQLPrimaryKeys() statement */
+#define CTX_FOREIGNKEY	0x2000		/* this is an SQLForeignKeys() statement */
+
 #define FND_SIZE(n)	((size_t)&((findall*)NULL)->codes[n])
 
 #define true(s, f)	((s)->flags & (f))
@@ -2647,6 +2650,92 @@ pl_odbc_column(term_t conn, term_t db, term_t row, control_t handle)
 
 
 static foreign_t
+odbc_primary_key(term_t conn, term_t table, term_t row, control_t handle)
+{ switch( PL_foreign_control(handle) )
+  { case PL_FIRST_CALL:
+    { connection *cn;
+      context *ctxt;
+      size_t len;
+      char *s;
+
+      if ( !get_connection(conn, &cn) )
+	return FALSE;
+					/* TBD: Unicode version */
+      if ( !PL_get_nchars(table, &len, &s, CVT_ATOM|CVT_STRING|cn->rep_flag) )
+	return type_error(table, "atom");
+
+      if ( !(ctxt = new_context(cn)) )
+	return FALSE;
+      ctxt->null = NULL;		/* use default $null$ */
+      set(ctxt, CTX_PRIMARYKEY);
+      TRY(ctxt,
+	  SQLPrimaryKeys(ctxt->hstmt, NULL, 0, NULL, 0,
+		     (SQLCHAR*)s, (SWORD)len),
+	  close_context(ctxt));
+
+      return odbc_row(ctxt, row);
+    }
+    case PL_REDO:
+      return odbc_row(PL_foreign_context_address(handle), row);
+
+    case PL_PRUNED:
+      free_context(PL_foreign_context_address(handle));
+      return TRUE;
+
+    default:
+      assert(0);
+      return FALSE;
+  }
+}
+
+static foreign_t
+odbc_foreign_key(term_t conn, term_t pktable, term_t fktable, term_t row, control_t handle)
+{ switch( PL_foreign_control(handle) )
+  { case PL_FIRST_CALL:
+    { connection *cn;
+      context *ctxt;
+      size_t lpkt = 0;
+      char *spkt = 0;
+      size_t lpkf = 0;
+      char *spkf = 0;
+
+      if ( !get_connection(conn, &cn) )
+	return FALSE;
+
+      int nt = 0;
+      if ( PL_get_nchars(pktable, &lpkt, &spkt, CVT_ATOM|CVT_STRING|cn->rep_flag) )
+	++nt;
+      if ( PL_get_nchars(fktable, &lpkf, &spkf, CVT_ATOM|CVT_STRING|cn->rep_flag) )
+	++nt;
+      if (!nt)
+	return resource_error("set at least PkTable or FkTable");
+
+      if ( !(ctxt = new_context(cn)) )
+	return FALSE;
+      ctxt->null = NULL;		/* use default $null$ */
+      set(ctxt, CTX_FOREIGNKEY);
+      TRY(ctxt,
+	  SQLForeignKeys(ctxt->hstmt, NULL, 0, NULL, 0,
+		     (SQLCHAR*)spkt, (SWORD)lpkt, NULL, 0, NULL, 0, (SQLCHAR*)spkf, (SWORD)lpkf),
+	  close_context(ctxt));
+
+      return odbc_row(ctxt, row);
+    }
+    case PL_REDO:
+      return odbc_row(PL_foreign_context_address(handle), row);
+
+    case PL_PRUNED:
+      free_context(PL_foreign_context_address(handle));
+      return TRUE;
+
+    default:
+      assert(0);
+      return FALSE;
+  }
+}
+
+
+static foreign_t
 odbc_types(term_t conn, term_t sqltype, term_t row, control_t handle)
 { switch( PL_foreign_control(handle) )
   { case PL_FIRST_CALL:
@@ -3710,6 +3799,9 @@ install_odbc4pl()
 
    DET("$odbc_statistics",	   1, odbc_statistics);
    DET("odbc_debug",	           1, odbc_debug);
+
+   NDET("odbc_primary_key",	   3, odbc_primary_key);
+   NDET("odbc_foreign_key",	   4, odbc_foreign_key);
 }
 
 

@@ -562,3 +562,75 @@ user:portray(Long) :-
 	sub_atom(Long, 0, 20, _, Start),
 	sub_atom(Long, _, 10, 0, End),
 	format('\'~w...~w\'', [Start, End]).
+
+		 /*******************************
+		 *    Primary & foreign keys    *
+		 *******************************/
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+this interface has been developed on purpose to implement
+W3C 'direct mapping of RDB to RDF'. The database definition is then the same
+as documented in http://www.w3.org/TR/rdb-direct-mapping/.
+If tested with MySQL, then tables must use InnoDB as storage engine,
+that allows for foreign keys definition. Here is the dump required to
+rebuild the test case. Database is named rdb2rdf_dm
+
+-- Adminer 3.6.1 MySQL dump
+
+SET NAMES utf8;
+SET foreign_key_checks = 0;
+SET time_zone = 'SYSTEM';
+SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+
+DROP TABLE IF EXISTS `Addresses`;
+CREATE TABLE `Addresses` (
+  `ID` int(11) NOT NULL DEFAULT '0',
+  `city` char(10) NOT NULL,
+  `state` char(2) NOT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO `Addresses` (`ID`, `city`, `state`) VALUES
+(18,	'Cambridge',	'MA');
+
+DROP TABLE IF EXISTS `People`;
+CREATE TABLE `People` (
+  `ID` int(11) NOT NULL,
+  `fname` char(10) NOT NULL,
+  `addr` int(11) DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  KEY `addr` (`addr`),
+  CONSTRAINT `People_ibfk_2` FOREIGN KEY (`addr`) REFERENCES `Addresses` (`ID`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO `People` (`ID`, `fname`, `addr`) VALUES
+(7,	'Bob',	18),
+(8,	'Sue',	NULL);
+
+-- 2013-01-03 09:05:38
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+test_keys_connect(Cn) :-
+	( passwd(Pwd) -> true ; getpass(Pwd), assert(passwd(Pwd)) ),
+	Db = rdb2rdf_dm,
+	Uid = root,  % normally this is user name
+	format(atom(S), 'driver=mysql;db=~s;uid=~s;pwd=~s', [Db, Uid, Pwd]),
+	odbc_driver_connect(S, Cn, []).
+
+test_pk_keys :-
+	test_keys_connect(Cn),
+	forall(odbc_table_primary_key(Cn, T, K),
+	       writeln(primary_key(T, K))).
+
+test_fk_keys :-
+	test_keys_connect(Cn),
+	forall((
+		Tpk = 'Addresses',
+		odbc_table_foreign_key(Cn, Tpk, Cpk, Tfk, Cfk),
+		writeln(foreign_key(Tpk, Cpk, Tfk, Cfk))
+	    ;
+		Tfk = 'People',
+		odbc_table_foreign_key(Cn, Tpk, Cpk, Tfk, Cfk),
+		writeln(foreign_key(Tpk, Cpk, Tfk, Cfk))
+	    ), true).

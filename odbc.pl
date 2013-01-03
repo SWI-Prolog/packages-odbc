@@ -60,6 +60,9 @@
 	    odbc_type/3,		% +Conn, ?Type, -Facet
 	    odbc_data_source/2,		% ?DSN, ?Description
 
+	    odbc_table_primary_key/3,	% +Conn, ?Table, ?Column
+	    odbc_table_foreign_key/5,	% +Conn, ?PkTable, ?PkColumn, ?FkTable, ?FkColumn
+
 	    odbc_statistics/1,		% -Value
 	    odbc_debug/1		% +Level
 	  ]).
@@ -260,6 +263,37 @@ searchable_arg(4, true).
 odbc_data_source(DSN, Description) :-
 	odbc_data_sources(List),
 	member(data_source(DSN, Description), List).
+
+		 /*******************************
+		 *    Primary & foreign keys    *
+		 *******************************/
+
+%%	odbc_table_primary_key(+Connection, +Table, ?Column)
+%
+%	Enumerate columns in primary key for table
+
+odbc_table_primary_key(Connection, Table, Column) :-
+	(   var(Table)
+	->  odbc_current_table(Connection, Table)
+	;   true
+	),
+	(   ground(Column)		% force determinism
+	->  odbc_primary_key(Connection, Table, Tuple),
+	    arg(4, Tuple, Column), !
+	;   odbc_primary_key(Connection, Table, Tuple),
+	    arg(4, Tuple, Column)
+	).
+
+%%	odbc_table_foreign_key(+Connection, ?PkTable, ?PkCol, ?FkTable, ?FkCol)
+%
+%	Enumerate foreign keys columns
+
+odbc_table_foreign_key(Connection, PkTable, PkColumn, FkTable, FkColumn) :-
+	odbc_foreign_key(Connection, PkTable, FkTable, Tuple),
+	( var(PkTable) -> arg(3, Tuple, PkTable) ; true ),
+	arg(4, Tuple, PkColumn),
+	( var(FkTable) -> arg(7, Tuple, FkTable) ; true ),
+	arg(8, Tuple, FkColumn).
 
 
 		 /*******************************
