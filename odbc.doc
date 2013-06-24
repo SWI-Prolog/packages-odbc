@@ -44,6 +44,7 @@ interface only covers the first layer.
 \pagebreak
 
 \section{Introduction}
+\label{sec:odbc-intro}
 
 The value of RDMS for Prolog is often over-estimated, as Prolog itself
 can manage substantial amounts of data. Nevertheless a Prolog/RDMS
@@ -65,8 +66,10 @@ described here.
 
 
 \section{The ODBC layer}
+\label{sec:odbc}
 
 \subsection{Connection management}
+\label{sec:odbc-connections}
 
 The ODBC interface deals with a single ODBC environment with
 multiple simultaneous connections.  The predicates in this section
@@ -258,6 +261,7 @@ useful.
 \end{description}
 
 \subsection{Running SQL queries}
+\label{sec:odbc-query}
 
 ODBC distinguishes between direct execution of literal SQL strings and
 parameterized execution of SQL strings. The first is a simple practical
@@ -269,6 +273,7 @@ through SQL-syntax and thus avoiding the need for quoting.
 
 
 \subsubsection{One-time invocation}
+\label{sec:odbc-one-time-query}
 
 \begin{description}
     \predicate{odbc_query}{3}{+Connection, +SQL, -RowOrAffected}
@@ -411,6 +416,7 @@ predicate prints a diagnostic message if the query returns a result.
 
 
 \subsubsection{Parameterised queries}
+\label{sec:odbc-param-query}
 
 ODBC provides for `parameterized queries'.  These are SQL queries with
 a \chr{?}-sign at places where parameters appear.  The ODBC interface
@@ -613,6 +619,7 @@ its interaction with database cursors.
 
 
 \subsection{Accessing the database dictionary}
+\label{sec:odbc-db-dictionary}
 
 With this interface we do not envision the use of Prolog as a database
 manager.  Nevertheless, elementary access to the structure of a database
@@ -800,6 +807,7 @@ default for the SQL type \const{timestamp}.
 
 
 \subsection{Errors and warnings}
+\label{sec:odbc-reports}
 
 ODBC operations return success, error or `success with info'. This
 section explains how results from the ODBC layer are reported to Prolog.
@@ -820,6 +828,7 @@ and \arg{Message} is a human readable explanation of the message.
 \end{description}
 
 \subsubsection{ODBC errors}				\label{sec:sqlerror}
+\label{sec:odbc-errors}
 
 If an ODBC operation signals an error, it throws the exception
 \term{error}{\term{odbc}{State, Native, Message}, _}. The arguments
@@ -831,6 +840,7 @@ domain and resource exceptions.
 
 
 \subsection{ODBC implementations}
+\label{sec:odbc-implementations}
 
 There is a wealth on ODBC implementations that are completely or almost
 compatible to this interface. In addition, a number of databases are
@@ -842,6 +852,7 @@ Adabas D, IBM DB2, Solid, and Sybase SQL Anywhere.
 
 
 \subsubsection{Using unixODBC}
+\label{sec:odbc-unix}
 
 The SWI-Prolog ODBC interface was developed using
 \url[unixODBC]{http://www.unixodbc.org} and \url[MySQL]{http://www.mysql.com} on
@@ -849,12 +860,14 @@ The SWI-Prolog ODBC interface was developed using
 
 
 \subsubsection{Using Microsoft ODBC}
+\label{sec:odbc-microsoft}
 
 On MS-Windows, the ODBC interface is a standard package, linked against
 \file{odbc32.lib}.
 
 
 \subsection{Remaining issues}
+\label{sec:odbc-issues}
 
 The following issues are identified and waiting for concrete problems
 and suggestions.
@@ -871,29 +884,8 @@ etc.
 \end{description}
 
 
-\section{Installation}
-
-\subsection{Unix systems}
-
-Installation on Unix system uses the commonly found {\em configure},
-{\em make} and {\em make install} sequence. SWI-Prolog should be
-installed before building this package. If SWI-Prolog is not installed
-as \program{pl}, the environment variable \env{PL} must be set to the
-name of the SWI-Prolog executable. Installation is now accomplished
-using:
-
-\begin{code}
-% ./configure
-% make
-% make install
-\end{code}
-
-This installs the foreign libraries in \file{$PLBASE/lib/$PLARCH} and
-the Prolog library files in \file{$PLBASE/library}, where
-\file{$PLBASE} refers to the SWI-Prolog `home-directory'.
-
-
 \section{Acknowledgments}
+\label{sec:odbc-acknowledgments}.
 
 The SWI-Prolog ODBC interface started from a partial interface by
 Stefano De Giorgi. Mike Elston suggested programmable
