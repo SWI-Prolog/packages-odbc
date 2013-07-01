@@ -3296,6 +3296,7 @@ plTypeID_convert_flags(int plTypeID, const char** expected)
       *expected = "code_list";
       break;
     default:
+      flags = 0; /* keep compiler happy */
       assert(0);
   }
   return flags;
@@ -4229,6 +4230,7 @@ pl_put_column(context *c, int nth, term_t col)
 #endif
 	    break;
 	  default:
+            rc = 0; /* keep compiler happy */
 	    assert(0);
 	}
 	break;
