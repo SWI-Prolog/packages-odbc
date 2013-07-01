@@ -224,7 +224,7 @@ static functor_t FUNCTOR_wide_column_threshold1;	/* set max_nogetdata */
 
 #define PARAM_BUFSIZE (SQLLEN)sizeof(double)
 
-typedef unsigned long code;
+typedef uintptr_t code;
 
 typedef struct
 { SWORD        cTypeID;			/* C type of value */
@@ -3042,7 +3042,7 @@ declare_parameters(context *ctxt, term_t parms)
 	  }
 	  params->length_ind = cbColDef * character_size;
 	} else				/* unknown, use SQLPutData() */
-	{ params->ptr_value = (PTR)(long)pn;
+	{ params->ptr_value = (PTR)(intptr_t)pn;
 	  params->len_value = SQL_LEN_DATA_AT_EXEC(0);
 	  DEBUG(2, Sdprintf("Using SQLPutData() for column %d\n", pn));
 	}
@@ -3458,7 +3458,7 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
       { PTR token;
 
 	if ( (ctxt->rc = SQLParamData(ctxt->hstmt, &token)) == SQL_NEED_DATA )
-	{ parameter *p = &ctxt->params[(long)token - 1];
+	{ parameter *p = &ctxt->params[(intptr_t)token - 1];
 	  size_t len;
 	  char *s;
 
