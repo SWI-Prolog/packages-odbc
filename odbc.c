@@ -1000,13 +1000,24 @@ compile_arg(compile_info *info, term_t t)
 	    ADDCODE(info, v.ascode[i]);
 	} else				/* string */
 	{ size_t len;
-	  char *s, *cp;
+	  char *s, *cp = NULL;
+          wchar_t *w = NULL;
+          int flags = 0;
 
-	  PL_get_string_chars(t, &s, &len);
-	  if ( !(cp = odbc_malloc(len+1)) )
-	    return FALSE;
-	  memcpy(cp, s, len+1);
+	  if (PL_get_string_chars(t, &s, &len))
+          { if ( !(cp = odbc_malloc(len+1)) )
+	      return FALSE;
+	    memcpy(cp, s, len+1);
+          } else if (PL_get_wchars(t, &len, &w, CVT_STRING))
+          { if ( !(cp = odbc_malloc((len+1)*sizeof(wchar_t))) )
+	      return FALSE;
+	    memcpy(cp, w, (len+1)*sizeof(wchar_t));
+            flags |= PL_BLOB_WCHAR;
+          } else {
+            assert(0);
+          }
 	  ADDCODE(info, PL_STRING);
+	  ADDCODE(info, flags);
 	  ADDCODE(info, len);
 	  ADDCODE(info, cp);
 	}
@@ -1016,9 +1027,9 @@ compile_arg(compile_info *info, term_t t)
       }
       break;
     case PL_INTEGER:
-    { long v;
+    { int64_t v;
 
-      if ( !PL_get_long(t, &v) )
+      if ( !PL_get_int64(t, &v) )
 	assert(0);
       ADDCODE_1(info, PL_INTEGER, v);
       break;
@@ -1109,9 +1120,9 @@ unregister_code(code *PC)
     case PL_FLOAT:
       return PC+sizeof(double)/sizeof(code);
     case PL_STRING:
-    { char *s = (char*)PC[1];
+    { char *s = (char*)PC[2];
       free(s);
-      return PC+2;
+      return PC+3;
     }
     case PL_FUNCTOR:
     { functor_t f = (functor_t)*PC++;
@@ -1168,14 +1179,21 @@ build_term(context *ctxt, code *PC, term_t result)
       return PC;
     }
     case PL_STRING:
-    { int len = (int)*PC++;
-      char *s = (char*)*PC++;
-      if ( !PL_put_string_nchars(result, len, s) )
-	return NULL;
+    { if (((int)*PC++)&PL_BLOB_WCHAR)
+      { size_t len = (size_t)*PC++;
+        wchar_t *w = (wchar_t*)*PC++;
+        if ( !PL_unify_wchars(result, PL_STRING, len, w) )
+	  return NULL;
+      } else
+      { size_t len = (size_t)*PC++;
+        char *s = (char*)*PC++;
+        if ( !PL_put_string_nchars(result, len, s) )
+	  return NULL;
+      }
       return PC;
     }
     case PL_INTEGER:
-    { if ( !PL_put_integer(result, (long)*PC++) )
+    { if ( !PL_put_int64(result, (int64_t)*PC++) )
 	return NULL;
       return PC;
     }
