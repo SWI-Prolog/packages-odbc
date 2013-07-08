@@ -980,7 +980,7 @@ compile_arg(compile_info *info, term_t t)
     { atom_t val;
 
       if ( !PL_get_atom(t, &val) )
-        return PL_domain_error("atom", t);
+        assert(0);
       ADDCODE_1(info, PL_ATOM, val);
       if ( true(info, CTX_PERSISTENT) )
 	PL_register_atom(val);
@@ -994,7 +994,7 @@ compile_arg(compile_info *info, term_t t)
 	  unsigned int i;
 
 	  if ( !PL_get_float(t, &v.asdouble) )
-            return PL_domain_error("float", t);
+            assert(0);
 	  ADDCODE(info, PL_FLOAT);
 	  for(i=0; i<sizeof(double)/sizeof(code); i++)
 	    ADDCODE(info, v.ascode[i]);
@@ -1008,13 +1008,13 @@ compile_arg(compile_info *info, term_t t)
           { if ( !(cp = odbc_malloc(len+1)) )
 	      return FALSE;
 	    memcpy(cp, s, len+1);
-          } else if (PL_get_wchars(t, &len, &w, CVT_STRING))
+          } else if (PL_get_wchars(t, &len, &w, CVT_STRING|CVT_EXCEPTION))
           { if ( !(cp = odbc_malloc((len+1)*sizeof(wchar_t))) )
 	      return FALSE;
 	    memcpy(cp, w, (len+1)*sizeof(wchar_t));
             flags |= PL_BLOB_WCHAR;
           } else {
-            return PL_domain_error("string", t);
+            return FALSE;
           }
 	  ADDCODE(info, PL_STRING);
 	  ADDCODE(info, flags);
@@ -1030,7 +1030,7 @@ compile_arg(compile_info *info, term_t t)
     { int64_t v;
 
       if ( !PL_get_int64(t, &v) )
-        return PL_domain_error("integer", t);
+        return PL_domain_error("int64", t);
       ADDCODE_1(info, PL_INTEGER, v);
       break;
     }
@@ -1040,7 +1040,7 @@ compile_arg(compile_info *info, term_t t)
       term_t a = PL_new_term_ref();
 
       if ( !PL_get_functor(t, &f) )
-        return PL_domain_error("functor", t);
+        assert(0);
       arity = PL_functor_arity(f);
       ADDCODE_1(info, PL_FUNCTOR, f);
       for(i=1; i<=arity; i++)
