@@ -1109,7 +1109,7 @@ unregister_code(code *PC)
     case PL_FLOAT:
       return PC+sizeof(double)/sizeof(code);
     case PL_STRING:
-    { char *s = (char*)PC[2];
+    { char *s = (char*)PC[1];
       free(s);
       return PC+2;
     }
