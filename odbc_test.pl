@@ -368,7 +368,7 @@ integer_to_float(Int, Float) :-
 
 atom_to_string('$null$', '$null$') :- !.
 atom_to_string(Atom, String) :-
-	string_to_atom(String, Atom).
+	atom_string(String, Atom).
 
 atom_to_integer('$null$', '$null$') :- !.
 atom_to_integer(Atom, Int) :-
