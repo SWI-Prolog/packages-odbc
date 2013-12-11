@@ -977,6 +977,9 @@ compile_arg(compile_info *info, term_t t)
       break;
     }
     case PL_ATOM:
+#ifdef PL_NIL
+    case PL_NIL:
+#endif
     { atom_t val;
 
       if ( !PL_get_atom(t, &val) )
@@ -1035,6 +1038,9 @@ compile_arg(compile_info *info, term_t t)
       break;
     }
     case PL_TERM:
+#ifdef PL_LIST_PAIR
+    case PL_LIST_PAIR:
+#endif
     { functor_t f;
       int i, arity;
       term_t a = PL_new_term_ref();
