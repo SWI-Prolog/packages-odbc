@@ -3345,13 +3345,13 @@ bind_parameters(context *ctxt, term_t parms)
 
     switch(prm->cTypeID)
     { case SQL_C_SLONG:
-      { long val;
+      { int32_t val;
 
-	if ( PL_get_long(head, &val) )
+	if ( PL_get_integer(head, &val) )
 	{ SQLINTEGER sqlval = val;
 	  memcpy(prm->ptr_value, &sqlval, sizeof(SQLINTEGER));
 	  prm->len_value = sizeof(SQLINTEGER);
-	} else if ( !try_null(ctxt, prm, head, "integer") )
+	} else if ( !try_null(ctxt, prm, head, "32 bit integer") )
 	  return FALSE;
         break;
       }
@@ -3362,7 +3362,7 @@ bind_parameters(context *ctxt, term_t parms)
 	{ SQLBIGINT sqlval = val;
 	  memcpy(prm->ptr_value, &sqlval, sizeof(SQLBIGINT));
 	  prm->len_value = sizeof(SQLBIGINT);
-	} else if ( !try_null(ctxt, prm, head, "integer") )
+	} else if ( !try_null(ctxt, prm, head, "64 bit integer") )
 	  return FALSE;
         break;
       }
