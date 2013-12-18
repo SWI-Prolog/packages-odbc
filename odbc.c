@@ -4041,7 +4041,7 @@ pl_put_column(context *c, int nth, term_t col)
   }
 
   if ( !p->ptr_value )			/* use SQLGetData() */
-  { char buf[256];			/* TBD: Unicode handling */
+  { char buf[256];
     char *data = buf;
     SQLLEN len;
 
@@ -4093,12 +4093,23 @@ pl_put_column(context *c, int nth, term_t col)
         } while(c->rc != SQL_SUCCESS && c->rc != SQL_NO_DATA);
         len = readsofar;
       } else if ( len >= (SDWORD)sizeof(buf) )
-      { int pad = p->cTypeID == SQL_C_CHAR ? 1 : 0;
-	size_t todo = len-sizeof(buf)+2*pad;
+      { int pad;
+	size_t todo;
 	SQLLEN len2;
 	char *ep;
 	int part = 2;
 
+        switch(p->cTypeID)
+        { case SQL_C_CHAR:
+            pad = sizeof(SQLCHAR);
+            break;
+          case SQL_C_WCHAR:
+            pad = sizeof(SQLWCHAR);
+            break;
+          default:
+            pad = 0;
+        }
+        todo = len-sizeof(buf)+2*pad;
 	data = odbc_malloc(len+pad);
 	memcpy(data, buf, sizeof(buf));	/* you don't get the data twice! */
 	ep = data+sizeof(buf)-pad;
@@ -4138,6 +4149,11 @@ pl_put_column(context *c, int nth, term_t col)
     }
 
   got_all_data:
+    if ( p->cTypeID == SQL_C_WCHAR )
+    { if ( !put_wchars(val, p->plTypeID, len/sizeof(SQLWCHAR), (SQLWCHAR*)data) )
+	return FALSE;
+
+    } else
     { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1
 					    : c->connection->rep_flag);
 
