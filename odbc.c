@@ -2905,7 +2905,9 @@ static sqltypedef sqltypes[] =
   { SQL_TINYINT,       "tinyint" },
   { SQL_VARBINARY,     "varbinary" },
   { SQL_VARCHAR,       "varchar" },
-  { SQL_WCHAR,         "nvarchar" },
+  { SQL_WCHAR,         "nchar" },
+  { SQL_WLONGVARCHAR,  "longnvarchar" },
+  { SQL_WVARCHAR,      "nvarchar" },
   { 0,		       NULL }
 };
 
