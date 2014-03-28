@@ -3516,7 +3516,8 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	      if ( len+1 <= sizeof(fast)/sizeof(SQLWCHAR) )
 	      { tmp = fast;
 	      } else
-	      { tmp = odbc_malloc((len+1)*sizeof(SQLWCHAR));
+              { if ( !(tmp = odbc_malloc((len+1)*sizeof(SQLWCHAR))) )
+                  return FALSE;
 	      }
 
 	      for(o=tmp; ws<es;)
@@ -4009,7 +4010,8 @@ put_wchars(term_t val, int plTypeID, size_t len, const SQLWCHAR *chars)
   if ( len+1 <= sizeof(fast)/sizeof(fast[0]) )
   { tmp = fast;
   } else
-  { tmp	= odbc_malloc((len+1)*sizeof(wchar_t));
+  { if ( !(tmp = odbc_malloc((len+1)*sizeof(wchar_t))) )
+      return FALSE;
   }
 
   for(o=tmp; chars<es;)
@@ -4112,7 +4114,8 @@ pl_put_column(context *c, int nth, term_t col)
             pad = 0;
         }
         todo = len-sizeof(buf)+2*pad;
-	data = odbc_malloc(len+pad);
+	if ( !(data = odbc_malloc(len+pad)) )
+          return FALSE;
 	memcpy(data, buf, sizeof(buf));	/* you don't get the data twice! */
 	ep = data+sizeof(buf)-pad;
 #ifdef SQL_SERVER_BUG			/* compensate for wrong pad info */
