@@ -231,7 +231,7 @@ typedef struct
   SWORD	       plTypeID;		/* Prolog type of value */
   SWORD	       sqlTypeID;		/* Sql type of value */
   SWORD	       scale;			/* Scale */
-  SQLPOINTER  *ptr_value;		/* ptr to value */
+  SQLPOINTER   ptr_value;		/* ptr to value */
   SQLLEN       length_ind;		/* length/indicator of value */
   SQLLEN       len_value;		/* length of value (as parameter)  */
   term_t       put_data;		/* data to put there */
@@ -1940,7 +1940,7 @@ free_parameters(int n, parameter *params)
 
     for (i=0; i<n; i++, p++)
     { if ( p->ptr_value &&
-	   p->ptr_value != (void *)p->buf &&
+	   p->ptr_value != (SQLPOINTER)p->buf &&
 	   p->len_value != SQL_LEN_DATA_AT_EXEC(0) ) /* Using SQLPutData() */
 	free(p->ptr_value);
       if ( p->source.table )
@@ -2328,7 +2328,7 @@ prepare_result(context *ctxt)
 
   bind:
     if ( ptr_result->len_value <= PARAM_BUFSIZE )
-      ptr_result->ptr_value = (void *)ptr_result->buf;
+      ptr_result->ptr_value = (SQLPOINTER)ptr_result->buf;
     else
     { if ( !(ptr_result->ptr_value = odbc_malloc(ptr_result->len_value)) )
 	return FALSE;
@@ -3070,7 +3070,7 @@ declare_parameters(context *ctxt, term_t parms)
 	  }
 	  params->length_ind = cbColDef * character_size;
 	} else				/* unknown, use SQLPutData() */
-	{ params->ptr_value = (PTR)(intptr_t)pn;
+	{ params->ptr_value = (SQLPOINTER)(intptr_t)pn;
 	  params->len_value = SQL_LEN_DATA_AT_EXEC(0);
 	  DEBUG(2, Sdprintf("Using SQLPutData() for column %d\n", pn));
 	}
