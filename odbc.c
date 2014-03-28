@@ -4156,14 +4156,19 @@ pl_put_column(context *c, int nth, term_t col)
   got_all_data:
     if ( p->cTypeID == SQL_C_WCHAR )
     { if ( !put_wchars(val, p->plTypeID, len/sizeof(SQLWCHAR), (SQLWCHAR*)data) )
+      { if ( data != buf )
+          free(data);
 	return FALSE;
-
+      }
     } else
     { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1
 					    : c->connection->rep_flag);
 
       if ( !put_chars(val, p->plTypeID, rep, len, data) )
+      { if ( data != buf )
+          free(data);
 	return FALSE;
+      }
     }
     if ( data != buf )
       free(data);
