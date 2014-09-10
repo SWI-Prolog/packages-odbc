@@ -2291,7 +2291,7 @@ prepare_result(context *ctxt)
     { case SQL_C_CHAR:
 	if ( columnSize == 0 )
 	  goto use_sql_get_data;
-	columnSize++;			/* one for decimal dot */
+	columnSize += 2;		/* decimal dot and '-' sign */
         /*FALLTHROUGH*/
       case SQL_C_BINARY:
 	if ( columnSize > ctxt->max_nogetdata || columnSize == 0 )
@@ -3061,11 +3061,10 @@ declare_parameters(context *ctxt, term_t parms)
 	if ( cbColDef > 0 )
 	{ if ( params->sqlTypeID == SQL_DECIMAL ||
 	       params->sqlTypeID == SQL_NUMERIC )
-	  { cbColDef+=character_size;			/* add one for decimal dot */
-	    /*Sdprintf("cbColDef++ = %d\n", cbColDef);*/
+	  { cbColDef += 2*character_size;	/* decimal dot and '-' sign */
 	  }
           if ( (cbColDef+1) * character_size > PARAM_BUFSIZE )
-          { if ( !(params->ptr_value = odbc_malloc((cbColDef+1) * character_size)) )
+          { if ( !(params->ptr_value = odbc_malloc((cbColDef+1)*character_size)) )
 	      return FALSE;
 	  }
 	  params->length_ind = cbColDef * character_size;
@@ -3396,7 +3395,8 @@ bind_parameters(context *ctxt, term_t parms)
 	    return type_error(head, expected);
 	  len = ls*sizeof(SQLWCHAR);
 	  if (  len > prm->length_ind )
-	  { DEBUG(1, Sdprintf("Column-width = %d\n", prm->length_ind));
+	  { DEBUG(1, Sdprintf("Column-width (SQL_C_WCHAR) = %d\n",
+			      prm->length_ind));
 	    return representation_error(head, "column_width");
 	  }
 	  prm->len_value = len;
@@ -3419,7 +3419,8 @@ bind_parameters(context *ctxt, term_t parms)
 	    return type_error(head, expected);
 	  len = l;
 	  if ( len > prm->length_ind )
-	  { DEBUG(1, Sdprintf("Column-width = %d\n", prm->length_ind));
+	  { DEBUG(1, Sdprintf("Column-width (SQL_C_CHAR) = %d\n",
+			      prm->length_ind));
 	    return representation_error(head, "column_width");
 	  }
 	  memcpy(prm->ptr_value, s, len+1);
