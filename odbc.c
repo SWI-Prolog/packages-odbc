@@ -364,6 +364,10 @@ odbc_report(HENV henv, HDBC hdbc, HSTMT hstmt, RETCODE rc)
   switch ( (rce=SQLError(henv, hdbc, hstmt, state, &native, message,
 			 sizeof(message), &msglen)) )
   { case SQL_NO_DATA_FOUND:
+      memcpy(state, "unexpected", 11);
+      native = -1;
+      memcpy(message, "Driver reported error without data", 34);
+      msglen = 34;
     case SQL_SUCCESS_WITH_INFO:
       if ( rc != SQL_ERROR )
 	return TRUE;
