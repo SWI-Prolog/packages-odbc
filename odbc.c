@@ -1349,7 +1349,7 @@ get_connection(term_t tcid, connection **cn)
       return type_error(tcid, "odbc_connection");
     c = ptr;
 
-    if ( !c->magic == CON_MAGIC )
+    if ( c->magic != CON_MAGIC )
       return existence_error(tcid, "odbc_connection");
   } else
   { if ( !PL_get_atom(tcid, &alias) )
