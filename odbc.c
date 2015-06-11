@@ -1293,6 +1293,7 @@ alloc_connection(atom_t alias, atom_t dsn)
     return NULL;
   memset(c, 0, sizeof(*c));
   c->alias = alias;
+  c->magic = CON_MAGIC;
   if ( alias )
     PL_register_atom(alias);
   c->dsn = dsn;
