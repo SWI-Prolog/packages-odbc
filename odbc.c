@@ -2297,7 +2297,7 @@ prepare_result(context *ctxt)
       case SQL_C_BINARY:
 	if ( columnSize > ctxt->max_nogetdata || columnSize == 0 )
 	  goto use_sql_get_data;
-        ptr_result->len_value = sizeof(char)*(columnSize+1);
+        ptr_result->len_value = sizeof(char)*(columnSize+1)*((ctxt->connection->encoding == ENC_UTF8)?4:1);
 	break;
       case SQL_C_WCHAR:
 	if ( columnSize == 0 )
@@ -2985,7 +2985,7 @@ declare_parameters(context *ctxt, term_t parms)
   parameter *params;
   SWORD npar;
   int pn;
-  int character_size = sizeof(char);
+  int character_size = ((ctxt->connection->encoding == ENC_UTF8)?4:1)*sizeof(char);
 
   TRY(ctxt,
       SQLNumParams(ctxt->hstmt, &npar),
