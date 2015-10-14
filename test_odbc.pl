@@ -64,8 +64,14 @@ databases.
 %	machine. With options, odbc_connect/3 is called with the DSN and
 %	options.  The caller must ensure ODBC is properly installed.
 
+run_odbc_tests :-
+	\+ getenv('USE_ODBC_TESTS', false).
+
 test_odbc :-
-	test_odbc('DRIVER=SQLite;Database=test.sqlite').
+	(   run_odbc_tests
+	->  test_odbc('DRIVER=SQLite;Database=test.sqlite')
+	;   true
+	).
 test_odbc(ConnectString) :-
 	delete_db_file(ConnectString),
 	catch(open_db(ConnectString), E, print_message(error, E)),
