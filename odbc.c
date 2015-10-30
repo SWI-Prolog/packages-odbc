@@ -3332,6 +3332,23 @@ plTypeID_convert_flags(int plTypeID, const char** expected)
 
 
 static int
+get_datetime(term_t t, size_t *len, char *s)
+{ SQL_TIMESTAMP_STRUCT stamp;
+
+  if ( get_timestamp(t, &stamp) )
+  { snprintf(s, *len, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
+	     stamp.year, stamp.month, stamp.day,
+	     stamp.hour, stamp.minute, stamp.second,
+	     stamp.fraction);
+    *len = strlen(s);			/* return from snprintf() is not */
+    return TRUE;			/* very portable (e.g., Windows) */
+  }
+
+  return FALSE;
+}
+
+
+static int
 bind_parameters(context *ctxt, term_t parms)
 { term_t tail = PL_copy_term_ref(parms);
   term_t head = PL_new_term_ref();
@@ -3413,10 +3430,14 @@ bind_parameters(context *ctxt, term_t parms)
         }
 #endif
 	} else
-	{ int rep = (prm->cTypeID == SQL_C_CHAR ? ctxt->connection->rep_flag
+	{ char datetime_str[128];
+	  int rep = (prm->cTypeID == SQL_C_CHAR ? ctxt->connection->rep_flag
 						: REP_ISO_LATIN_1);
 
-	  if ( !PL_get_nchars(head, &l, &s, flags|rep) )
+	  l = sizeof(datetime_str);
+	  s = datetime_str;
+	  if ( !PL_get_nchars(head, &l, &s, flags|rep) &&
+	       !get_datetime(head, &l, s) )
 	    return type_error(head, expected);
 	  len = l;
 	  if ( len > prm->length_ind )
