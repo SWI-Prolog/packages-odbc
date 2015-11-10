@@ -3269,8 +3269,8 @@ get_timestamp(term_t t, SQL_TIMESTAMP_STRUCT* stamp)
     return TRUE;
 #if defined(HAVE_LOCALTIME) || defined(HAVE_GMTIME)
   } else if ( PL_get_float(t, &tf) && tf <= LONG_MAX && tf >= LONG_MIN )
-  { time_t t = (time_t) tf;
-    long  us = (long)((tf - (double) t) * 1000.0);
+  { time_t t = (time_t)tf;
+    long  ns = (long)((tf - (double)t) * 1000000000.0);
 #if defined(HAVE_GMTIME) && defined USE_UTC
     struct tm *tm = gmtime(&t);
 #else
@@ -3283,7 +3283,7 @@ get_timestamp(term_t t, SQL_TIMESTAMP_STRUCT* stamp)
     stamp->hour	    = tm->tm_hour;
     stamp->minute   = tm->tm_min;
     stamp->second   = tm->tm_sec;
-    stamp->fraction = us;
+    stamp->fraction = ns;
 
     return TRUE;
 #endif
@@ -3336,11 +3336,20 @@ get_datetime(term_t t, size_t *len, char *s)
 { SQL_TIMESTAMP_STRUCT stamp;
 
   if ( get_timestamp(t, &stamp) )
-  { snprintf(s, *len, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
+  { size_t l;
+    char *e;
+
+    snprintf(s, *len, "%04d-%02d-%02d %02d:%02d:%02d.%09d",
 	     stamp.year, stamp.month, stamp.day,
 	     stamp.hour, stamp.minute, stamp.second,
 	     stamp.fraction);
-    *len = strlen(s);			/* return from snprintf() is not */
+    l = strlen(s);			/* return from snprintf() is not */
+    e = &s[l];
+    while(e[-1] == '0')
+      e--;
+    *e = '\0';
+
+    *len = e-s;
     return TRUE;			/* very portable (e.g., Windows) */
   }
 
