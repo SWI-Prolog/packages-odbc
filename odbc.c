@@ -933,7 +933,7 @@ the current statement.
 typedef struct
 { term_t row;				/* the row */
   term_t tmp;				/* scratch term */
-  int columns;				/* arity of row-term */
+  size_t columns;				/* arity of row-term */
   unsigned flags;			/* CTX_PERSISTENT */
   int  size;				/* # codes */
   code buf[MAXCODES];
@@ -3008,7 +3008,7 @@ declare_parameters(context *ctxt, term_t parms)
       PL_get_list(tail, head, tail);
       params++, pn++)
   { atom_t name;
-    int arity;
+    size_t arity;
     SWORD sqlType, fNullable;
     SQLULEN cbColDef = 0;
     SWORD plType = SQL_PL_DEFAULT;
@@ -3600,7 +3600,7 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 static int
 get_scroll_param(term_t param, int *orientation, long *offset)
 { atom_t name;
-  int arity;
+  size_t arity;
 
   if ( PL_get_name_arity(param, &name, &arity) )
   { if ( name == ATOM_next && arity == 0 )
