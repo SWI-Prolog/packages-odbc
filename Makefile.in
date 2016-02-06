@@ -4,9 +4,9 @@
 # This template is used by configure to create Makefile.  See
 # the file INSTALL for further installation instructions.
 #
-# License: LGPL
+# License: Simplified BSD
 #
-# Author: Jan Wielemaker (jan@swi.psy.uva.nl)
+# Author: Jan Wielemaker (J.Wielemaker@vu.nl)
 ################################################################
 
 PACKAGE=odbc
