@@ -310,13 +310,17 @@ lemma(Lemma) :-
 \end{code}
 
 The following example adds a name to a table with parent-relations,
-returning the number of rows affected by the statement.
+returning the number of rows affected by the statement.  Note that
+the SQL quote character is the \emph{ASCII single quote} and, as this
+SQL quote is embedded in a single quoted Prolog atom, it must be written
+as \verb$\'$ or \verb$''$ (\emph{two} single quotes).  We use the first
+alternative for better visibility.
 
 \begin{code}
 insert_child(Child, Mother, Father, Affected) :-
 	odbc_query(parents,
 		   'INSERT INTO parents (name,mother,father) \
-		      VALUES ("mary", "christine", "bob")',
+		      VALUES (\'mary\', \'christine\', \'bob\')',
 		   affected(Affected)).
 \end{code}
 
