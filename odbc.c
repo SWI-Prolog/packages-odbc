@@ -2328,6 +2328,8 @@ prepare_result(context *ctxt)
 	ptr_result->len_value = sizeof(SQL_TIMESTAMP_STRUCT);
 	break;
       default:
+	Sdprintf("Oops: %s:%d: cTypeID = %d\n",
+		 __FILE__, __LINE__, ptr_result->cTypeID);
 	assert(0);
         return FALSE;			/* make compiler happy */
     }
