@@ -199,6 +199,7 @@ static functor_t FUNCTOR_password1;
 static functor_t FUNCTOR_driver_string1;
 static functor_t FUNCTOR_alias1;
 static functor_t FUNCTOR_mars1;
+static functor_t FUNCTOR_odbc_version1;
 static functor_t FUNCTOR_open1;
 static functor_t FUNCTOR_auto_commit1;
 static functor_t FUNCTOR_types1;
@@ -610,6 +611,8 @@ odbc_realloc(void* inptr, size_t bytes)
 	PL_get_typed_arg_ex(i, t, PL_get_float, "float", n)
 #define get_encoding_arg_ex(i, t, n) \
 	PL_get_typed_arg_ex(i, t, get_encoding, "encoding", n)
+#define get_odbc_version_arg_ex(i, t, n) \
+	PL_get_typed_arg_ex(i, t, get_odbc_version, "odbc_version", n)
 
 /* Used for passwd and driver string.  Should use Unicode/encoding
    stuff for that.
@@ -725,6 +728,39 @@ list_length(term_t list)
 
   type_error(list, "list");
   return -1;
+}
+
+
+typedef struct odbc_version_name
+{ char	       *name;
+  intptr_t	version;
+  atom_t	a;
+} odbc_version_name;
+
+static odbc_version_name odbc_versions[] =
+{ { "2.0",	SQL_OV_ODBC2 },
+  { "3.0",	SQL_OV_ODBC3 },
+  { NULL }
+};
+
+static int
+get_odbc_version(term_t t, intptr_t *ver)
+{ atom_t a;
+
+  if ( PL_get_atom(t, &a) )
+  { odbc_version_name *v;
+
+    for(v=odbc_versions; v->name; v++)
+    { if ( !v->a )
+	v->a = PL_new_atom(v->name);
+      if ( v->a == a )
+      { *ver = v->version;
+	return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
 }
 
 
@@ -1405,6 +1441,7 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    atom_t alias = 0;			/* alias-name */
    IOENC encoding = DEFAULT_ENCODING;	/* Connection encoding */
    int mars = 0;			/* mars-value */
+   intptr_t odbc_version = SQL_OV_ODBC3;	/* ODBC connectivity version */
    atom_t open = 0;			/* open next connection */
    RETCODE rc;				/* result code for ODBC functions */
    HDBC hdbc;
@@ -1434,6 +1471,9 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 	 return FALSE;
      } else if ( PL_is_functor(head, FUNCTOR_mars1) )
      { if ( !get_bool_arg_ex(1, head, &mars) )
+	 return FALSE;
+     } else if ( PL_is_functor(head, FUNCTOR_odbc_version1) )
+     { if ( !get_odbc_version_arg_ex(1, head, &odbc_version) )
 	 return FALSE;
      } else if ( PL_is_functor(head, FUNCTOR_open1) )
      { if ( !get_atom_arg_ex(1, head, &open) )
@@ -1485,6 +1525,12 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    { if ( (rc=SQLAllocEnv(&henv)) != SQL_SUCCESS )
      { UNLOCK();
        return PL_warning("Could not initialise SQL environment");
+     }
+     if ( (rc=SQLSetEnvAttr(henv,
+			    SQL_ATTR_ODBC_VERSION,
+			    (SQLPOINTER) odbc_version,
+			    0)) != SQL_SUCCESS )
+     { return odbc_report(henv, NULL, NULL, rc);
      }
    }
    UNLOCK();
@@ -2828,6 +2874,10 @@ odbc_data_sources(term_t list)
   LOCK();
   if ( !henv )
     SQLAllocEnv(&henv);		/* Allocate an environment handle */
+    SQLSetEnvAttr(henv,
+		  SQL_ATTR_ODBC_VERSION,
+		  (SQLPOINTER) SQL_OV_ODBC3,
+		  0);
   UNLOCK();
 
   for(;; dir=SQL_FETCH_NEXT)
@@ -3827,6 +3877,7 @@ install_odbc4pl()
    FUNCTOR_driver_string1	 = MKFUNCTOR("driver_string", 1);
    FUNCTOR_alias1		 = MKFUNCTOR("alias", 1);
    FUNCTOR_mars1		 = MKFUNCTOR("mars", 1);
+   FUNCTOR_odbc_version1	 = MKFUNCTOR("odbc_version", 1);
    FUNCTOR_open1		 = MKFUNCTOR("open", 1);
    FUNCTOR_auto_commit1		 = MKFUNCTOR("auto_commit", 1);
    FUNCTOR_types1		 = MKFUNCTOR("types", 1);
