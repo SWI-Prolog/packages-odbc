@@ -111,6 +111,10 @@ requiring the dynamic cursor (which incurs an astounding 20-50x slowdown
 of query execution!!). MARS is a new feature in SQL2k5 apparently, and
 only works if you use the native driver. For the non-native driver,
 specifying that it is enabled will have absolutely no effect.
+
+    \termitem{odbc_version}{+Atom}
+Select the version of the ODBC connection.  Default is \verb$'3.0'$.
+The other supported value is \verb$'2.0'$.
 \end{description}
 
 The following example connects to the WordNet%
