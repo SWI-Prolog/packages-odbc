@@ -2873,11 +2873,12 @@ odbc_data_sources(term_t list)
 
   LOCK();
   if ( !henv )
-    SQLAllocEnv(&henv);		/* Allocate an environment handle */
+  { SQLAllocEnv(&henv);		/* Allocate an environment handle */
     SQLSetEnvAttr(henv,
 		  SQL_ATTR_ODBC_VERSION,
 		  (SQLPOINTER) SQL_OV_ODBC3,
 		  0);
+  }
   UNLOCK();
 
   for(;; dir=SQL_FETCH_NEXT)
