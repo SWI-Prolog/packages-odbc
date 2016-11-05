@@ -1530,7 +1530,8 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 			    SQL_ATTR_ODBC_VERSION,
 			    (SQLPOINTER) odbc_version,
 			    0)) != SQL_SUCCESS )
-     { return odbc_report(henv, NULL, NULL, rc);
+     { UNLOCK();
+       return odbc_report(henv, NULL, NULL, rc);
      }
    }
    UNLOCK();
