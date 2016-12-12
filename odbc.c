@@ -3399,9 +3399,9 @@ get_datetime(term_t t, size_t *len, char *s)
     char *e;
 
     snprintf(s, *len, "%04d-%02d-%02d %02d:%02d:%02d.%09d",
-	     stamp.year, stamp.month, stamp.day,
-	     stamp.hour, stamp.minute, stamp.second,
-	     stamp.fraction);
+	     (int)stamp.year, (int)stamp.month, (int)stamp.day,
+	     (int)stamp.hour, (int)stamp.minute, (int)stamp.second,
+	     (int)stamp.fraction);
     l = strlen(s);			/* return from snprintf() is not */
     e = &s[l];
     while(e[-1] == '0')
