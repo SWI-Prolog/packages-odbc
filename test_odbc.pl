@@ -668,7 +668,7 @@ tcolumns :-
                  *******************************/
 
 progress(_, _) :-
-    current_prolog_flag(verbose, silent), 
+    current_prolog_flag(verbose, silent),
     !.
 progress(Fmt, Args) :-
     format(Fmt, Args),
