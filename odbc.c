@@ -3593,9 +3593,11 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	    if ( p->cTypeID == SQL_C_WCHAR )
 	    { wchar_t *ws;
 
-	      if ( !PL_get_wchars(p->put_data, &len, &ws, flags) )
+              if ( !PL_get_wchars(p->put_data, &len, &ws, flags) )
+              {
+                SQLCancel(ctxt->hstmt);
 		return type_error(p->put_data, expected);
-
+              }
 #if SIZEOF_SQLWCHAR == SIZEOF_WCHAR_T
 	      SQLPutData(ctxt->hstmt, ws, len*sizeof(SQLWCHAR));
 #else
@@ -3608,7 +3610,10 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	      { tmp = fast;
 	      } else
               { if ( !(tmp = odbc_malloc((len+1)*sizeof(SQLWCHAR))) )
+                {
+                  SQLCancel(ctxt->hstmt);
                   return FALSE;
+                }
 	      }
 
 	      for(o=tmp; ws<es;)
@@ -3624,8 +3629,11 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	    { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1
 						    : ctxt->connection->rep_flag);
 
-	      if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
-		return type_error(p->put_data, expected);
+              if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
+              {
+                SQLCancel(ctxt->hstmt);
+                return type_error(p->put_data, expected);
+              }
 	      SQLPutData(ctxt->hstmt, s, len);
 	    }
 	  }
