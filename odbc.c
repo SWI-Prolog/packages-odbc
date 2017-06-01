@@ -2352,7 +2352,7 @@ prepare_result(context *ctxt)
         ptr_result->len_value = sizeof(char)*(columnSize+1)*((ctxt->connection->encoding == ENC_UTF8)?4:1);
 	break;
       case SQL_C_WCHAR:
-	if ( columnSize == 0 )
+	if ( columnSize > ctxt->max_nogetdata || columnSize == 0 )
 	  goto use_sql_get_data;
         ptr_result->len_value = sizeof(wchar_t)*(columnSize+1);
         break;
