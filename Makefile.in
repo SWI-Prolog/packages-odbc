@@ -62,7 +62,7 @@ uninstall::
 ################################################################
 
 check::
-		$(PL) -f test_odbc.pl -q -g test_odbc,halt -t 'halt(1)'
+		$(PL) -f test_odbc.pl -q -g test_odbc -t halt
 
 ################################################################
 # Clean
