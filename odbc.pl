@@ -53,7 +53,7 @@
             odbc_close_statement/1,     % +Statement
             odbc_clone_statement/2,     % +Statement, -Clone
             odbc_free_statement/1,      % +Statement
-
+            odbc_cancel_thread/1,       % +ThreadId
                                         % DB dictionary info
             odbc_current_table/2,       % +Conn, -Table
             odbc_current_table/3,       % +Conn, -Table, ?Facet

@@ -520,6 +520,14 @@ same_age(X, Y) :-
 Like odbc_query/2, this predicate is meant to execute simple SQL
 statements without interest in the result.
 
+    \predicate{odbc_cancel_thread}{1}{+ThreadId}
+If the thread \arg{ThreadId} is currently blocked inside odbc_execute/4
+then interrupt it. If \arg{ThreadId} is not currently executing
+odbc_execute/4 then odbc_cancel_thread/1 succeeds but does nothing. If
+ThreadId is not a valid thread ID or alias, an exception is raised.
+\end{description}
+
+
     \predicate{odbc_free_statement}{1}{+Statement}
 Destroy a statement prepared with odbc_prepare/4. If the statement is
 currently executing (i.e. odbc_execute/3 left a choice-point), the

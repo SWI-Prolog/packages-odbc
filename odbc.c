@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2002-2015, University of Amsterdam,
+    Copyright (c)  2002-2017, University of Amsterdam,
                               VU University Amsterdam
     All rights reserved.
 
@@ -125,9 +125,22 @@ static int odbc_debuglevel = 0;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK() pthread_mutex_lock(&mutex)
 #define UNLOCK() pthread_mutex_unlock(&mutex)
+#if __WINDOWS__
+static CRITICAL_SECTION context_mutex;
+#define INIT_CONTEXT_LOCK() InitializeCriticalSection(&context_mutex)
+#define LOCK_CONTEXTS()	EnterCriticalSection(&context_mutex)
+#define UNLOCK_CONTEXTS() LeaveCriticalSection(&context_mutex)
 #else
+static pthread_mutex_t context_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define INIT_CONTEXT_LOCK()
+#define LOCK_CONTEXTS() pthread_mutex_lock(&context_mutex)
+#define UNLOCK_CONTEXTS() pthread_mutex_unlock(&context_mutex)
+#endif
+#else /*_REENTRANT*/
 #define LOCK()
 #define UNLOCK()
+#define LOCK_CONTEXTS()
+#define UNLOCK_CONTEXTS()
 #endif
 
 #if !defined(HAVE_TIMEGM) && defined(HAVE_MKTIME)
@@ -332,6 +345,7 @@ static struct
 
 #define CTX_PRIMARYKEY	0x1000		/* this is an SQLPrimaryKeys() statement */
 #define CTX_FOREIGNKEY	0x2000		/* this is an SQLForeignKeys() statement */
+#define CTX_EXECUTING	0x4000		/* Context is currently being used in SQLExecute */
 
 #define FND_SIZE(n)	((size_t)&((findall*)NULL)->codes[n])
 
@@ -349,6 +363,7 @@ static int pl_put_column(context *c, int nth, term_t col);
 static SWORD CvtSqlToCType(context *ctxt, SQLSMALLINT, SQLSMALLINT);
 static void free_context(context *ctx);
 static void close_context(context *ctx);
+static void unmark_and_close_context(context *ctx);
 static foreign_t odbc_set_connection(connection *cn, term_t option);
 static int get_pltype(term_t t, SWORD *type);
 static SWORD get_sqltype_from_atom(atom_t name, SWORD *type);
@@ -1945,6 +1960,9 @@ odbc_end_transaction(term_t conn, term_t action)
 		 *	CONTEXT (STATEMENTS)	*
 		 *******************************/
 
+static context** executing_contexts = NULL;
+static int executing_context_size = 0;
+
 static context *
 new_context(connection *cn)
 { context *ctxt = odbc_malloc(sizeof(context));
@@ -1969,6 +1987,15 @@ new_context(connection *cn)
   return ctxt;
 }
 
+
+static void
+unmark_and_close_context(context *ctxt)
+{ LOCK_CONTEXTS();
+  clear(ctxt, CTX_EXECUTING);
+  executing_contexts[PL_thread_self()] = NULL;
+  UNLOCK_CONTEXTS();
+  close_context(ctxt);
+}
 
 static void
 close_context(context *ctxt)
@@ -2603,6 +2630,38 @@ set_statement_options(context *ctxt, term_t options)
 }
 
 
+/* This is not thread-safe: You must hold the lock when entering! */
+static int
+mark_context_as_executing(int self, context* ctxt)
+{ if ( self >= executing_context_size )
+  { int old_size = executing_context_size;
+    int i;
+
+    executing_context_size = 16;
+    while (self >= executing_context_size)
+      executing_context_size <<= 1;
+
+    if ( executing_contexts == NULL )
+    { executing_contexts = odbc_malloc(executing_context_size * sizeof(context*));
+      if ( executing_contexts == NULL )
+	return FALSE;
+    } else
+    { context** tmp = odbc_realloc(executing_contexts,
+				   executing_context_size * sizeof(context*));
+      if ( tmp == NULL )
+	return FALSE;
+      executing_contexts = tmp;
+    }
+    for (i = old_size; i < executing_context_size; i++)
+      executing_contexts[i] = NULL;
+  }
+
+  executing_contexts[self] = ctxt;
+  set(ctxt, CTX_EXECUTING);
+
+  return TRUE;
+}
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 odbc_query(+Conn, +SQL, -Row)
     Execute an SQL query, returning the result-rows 1-by-1 on
@@ -2617,7 +2676,7 @@ pl_odbc_query(term_t conn, term_t tquery, term_t trow, term_t options,
   switch( PL_foreign_control(handle) )
   { case PL_FIRST_CALL:
     { connection *cn;
-
+      int self = PL_thread_self();
       if ( !get_connection(conn, &cn) )
 	return FALSE;
 
@@ -2633,16 +2692,25 @@ pl_odbc_query(term_t conn, term_t tquery, term_t trow, term_t options,
 	return FALSE;
       }
       set(ctxt, CTX_INUSE);
+      LOCK_CONTEXTS();
+      if (!mark_context_as_executing(self, ctxt))
+      { UNLOCK_CONTEXTS();
+        return FALSE;
+      }
+      UNLOCK_CONTEXTS();
       if ( ctxt->char_width == 1 )
       { TRY(ctxt,
 	    SQLExecDirectA(ctxt->hstmt, ctxt->sqltext.a, ctxt->sqllen),
-	    close_context(ctxt));
+            unmark_and_close_context(ctxt));
       } else
       { TRY(ctxt,
 	    SQLExecDirectW(ctxt->hstmt, ctxt->sqltext.w, ctxt->sqllen),
-	    close_context(ctxt));
+            unmark_and_close_context(ctxt));
       }
-
+      LOCK_CONTEXTS();
+      clear(ctxt, CTX_EXECUTING);
+      executing_contexts[self] = NULL;
+      UNLOCK_CONTEXTS();
       return odbc_row(ctxt, trow);
     }
     case PL_REDO:
@@ -3559,7 +3627,7 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 { switch( PL_foreign_control(handle) )
   { case PL_FIRST_CALL:
     { context *ctxt;
-
+      int self = PL_thread_self();
       if ( !getStmt(qid, &ctxt) )
 	return FALSE;
       if ( true(ctxt, CTX_INUSE) )
@@ -3576,8 +3644,17 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 
       set(ctxt, CTX_INUSE);
       clear(ctxt, CTX_PREFETCHED);
-
+      LOCK_CONTEXTS();
+      if (!mark_context_as_executing(self, ctxt))
+      { UNLOCK_CONTEXTS();
+        return FALSE;
+      }
+      UNLOCK_CONTEXTS();
       ctxt->rc = SQLExecute(ctxt->hstmt);
+      LOCK_CONTEXTS();
+      clear(ctxt, CTX_EXECUTING);
+      executing_contexts[self] = NULL;
+      UNLOCK_CONTEXTS();
       while( ctxt->rc == SQL_NEED_DATA )
       { PTR token;
 
@@ -3782,6 +3859,23 @@ odbc_close_statement(term_t qid)
   return TRUE;
 }
 
+static foreign_t
+odbc_cancel_thread(term_t Tid)
+{ int tid;
+
+  if ( !PL_get_thread_id_ex(Tid, &tid) )
+    return FALSE;
+
+  LOCK_CONTEXTS();
+  if (tid < executing_context_size &&
+      executing_contexts[tid] != NULL &&
+      true(executing_contexts[tid], CTX_EXECUTING))
+    SQLCancel(executing_contexts[tid]->hstmt);
+  UNLOCK_CONTEXTS();
+
+  return TRUE;
+}
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 $odbc_statistics/1
@@ -3834,7 +3928,8 @@ odbc_debug(term_t level)
 
 install_t
 install_odbc4pl()
-{  ATOM_row	      =	PL_new_atom("row");
+{  INIT_CONTEXT_LOCK();
+   ATOM_row	      =	PL_new_atom("row");
    ATOM_informational =	PL_new_atom("informational");
    ATOM_default	      =	PL_new_atom("default");
    ATOM_once	      =	PL_new_atom("once");
@@ -3921,6 +4016,7 @@ install_odbc4pl()
    NDET("odbc_execute",		   3, odbc_execute);
    DET("odbc_fetch",		   3, odbc_fetch);
    DET("odbc_close_statement",	   1, odbc_close_statement);
+   DET("odbc_cancel_thread",	   1, odbc_cancel_thread);
 
    NDET("odbc_query",		   4, pl_odbc_query);
    NDET("odbc_tables",	           2, odbc_tables);
