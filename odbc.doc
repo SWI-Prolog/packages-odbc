@@ -861,7 +861,7 @@ compatible to this interface. In addition, a number of databases are
 delivered with an ODBC compatible interface. This implies you get the
 portability benefits of ODBC without paying the configuration and
 performance price. Currently this interface is, according to the
-\url[PHP]{http://www.php.net} documentation on this subject, provided by
+\href{http://www.php.net}{PHP} documentation on this subject, provided by
 Adabas D, IBM DB2, Solid, and Sybase SQL Anywhere.
 
 
@@ -869,8 +869,8 @@ Adabas D, IBM DB2, Solid, and Sybase SQL Anywhere.
 \label{sec:odbc-unix}
 
 The SWI-Prolog ODBC interface was developed using
-\url[unixODBC]{http://www.unixodbc.org} and \url[MySQL]{http://www.mysql.com} on
-\url[SuSE Linux]{http://www.suse.com}.
+\href{http://www.unixodbc.org}{unixODBC} and \href{http://www.mysql.com}{MySQL} on
+\href{http://www.suse.com}{SuSE Linux}.
 
 
 \subsubsection{Using Microsoft ODBC}
