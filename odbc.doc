@@ -797,9 +797,9 @@ values as well. Can be used for the integral, and \const{decimal} types
 as well as the types \const{date} and \const{timestamp}, which are
 represented as POSIX time-stamps (seconds after Jan 1, 1970).
 
-    \termitem{double}{}
+    \termitem{float}{}
 Used as default for the SQL types \const{real}, \const{float} and
-\const{double}.  Can be used for the integral, float and \const{decimal}
+\const{double}.  Can be used for the integral and \const{decimal}
 types as well as the types \const{date} and \const{timestamp}, which
 are represented as POSIX time-stamps (seconds after Jan 1, 1970).
 Representing time this way is compatible to SWI-Prologs time-stamp
