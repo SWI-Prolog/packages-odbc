@@ -53,9 +53,7 @@ Stefano  De  Giorgi  (s.degiorgi@tin.it).
 #define HAVE_SQLULEN 1
 #endif
 #else
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 #endif
 
 #define O_DEBUG 1
