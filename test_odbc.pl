@@ -74,7 +74,7 @@ run_odbc_tests :-
 
 test_odbc :-
     (   run_odbc_tests
-    ->  test_odbc('DRIVER=SQLite;Database=test.sqlite')
+    ->  test_odbc('DRIVER=SQLite3;Database=test.sqlite')
     ;   true
     ).
 test_odbc(ConnectString) :-
