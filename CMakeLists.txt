@@ -33,6 +33,7 @@ swipl_plugin(
     C_LIBS ${ODBC_LIBRARIES}
     PL_LIBS odbc.pl)
 
-test_libs(odbc)
+# Doesn't work (also not for the original autoconf version)
+# test_libs(odbc)
 
 endif(ODBC_FOUND)
