@@ -36,4 +36,6 @@ swipl_plugin(
 # Doesn't work (also not for the original autoconf version)
 # test_libs(odbc)
 
+pkg_doc(odbc)
+
 endif(ODBC_FOUND)
