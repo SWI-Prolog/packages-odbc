@@ -32,6 +32,9 @@ swipl_plugin(
     C_SOURCES odbc.c
     C_LIBS ${ODBC_LIBRARIES}
     PL_LIBS odbc.pl)
+target_include_directories(
+    plugin_odbc4pl BEFORE PRIVATE
+    ${ODBC_INCLUDE_DIR})
 
 # Doesn't work (also not for the original autoconf version)
 # test_libs(odbc)
