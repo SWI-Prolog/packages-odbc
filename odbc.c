@@ -38,23 +38,10 @@ This module is based on pl_odbc.{c,pl},   a  read-only ODBC interface by
 Stefano  De  Giorgi  (s.degiorgi@tin.it).
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#ifdef __WINDOWS__
-#include <windows.h>
-#endif
-
-#ifdef _MSC_VER
-#define HAVE_MKTIME 1
-#define HAVE_GMTIME 1
-#undef WORDS_BIGENDIAN
-#define SIZEOF_SQLWCHAR 2
-#define SIZEOF_WCHAR_T 2
-#if (_MSC_VER >= 1400)
-#define HAVE_SQLLEN 1			/* should depend on SDK version? */
-#define HAVE_SQLULEN 1
-#endif
-#else
 #include <config.h>
-#endif
+
+#include <SWI-Stream.h>
+#include <SWI-Prolog.h>
 
 #define O_DEBUG 1
 
@@ -98,8 +85,6 @@ static int odbc_debuglevel = 0;
 #define DEFAULT_ENCODING ENC_UTF8
 #endif
 
-#include <SWI-Stream.h>
-#include <SWI-Prolog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
