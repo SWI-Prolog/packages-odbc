@@ -126,7 +126,7 @@ static pthread_mutex_t context_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define UNLOCK_CONTEXTS()
 #endif
 
-#if !defined(HAVE_TIMEGM) && defined(HAVE_MKTIME)
+#if !defined(HAVE_TIMEGM) && defined(HAVE_MKTIME) && defined(USE_UTC)
 #define EMULATE_TIMEGM
 static time_t timegm(struct tm *tm);
 #define HAVE_TIMEGM
