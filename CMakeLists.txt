@@ -31,13 +31,12 @@ endif()
 configure_file(config.h.cmake config.h)
 
 swipl_plugin(
-    odbc4pl
+    odbc
+    MODULE odbc4pl
     C_SOURCES odbc.c
     C_LIBS ${ODBC_LIBRARIES}
+    C_INCLUDE_DIR ${ODBC_INCLUDE_DIR}
     PL_LIBS odbc.pl)
-target_include_directories(
-    plugin_odbc4pl BEFORE PRIVATE
-    ${ODBC_INCLUDE_DIR})
 
 # Doesn't work (also not for the original autoconf version)
 # test_libs(odbc)

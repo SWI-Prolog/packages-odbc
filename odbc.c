@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2002-2017, University of Amsterdam,
+    Copyright (c)  2002-2018, University of Amsterdam,
                               VU University Amsterdam
     All rights reserved.
 
@@ -101,7 +101,7 @@ static int odbc_debuglevel = 0;
 #define NameBufferLength 256
 #define CVNERR -1			/* conversion error */
 
-#if defined(_REENTRANT)
+#if defined(_REENTRANT) || defined(O_PLTM)
 #include <pthread.h>
 
 					/* FIXME: Actually use these */
@@ -119,12 +119,12 @@ static pthread_mutex_t context_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_CONTEXTS() pthread_mutex_lock(&context_mutex)
 #define UNLOCK_CONTEXTS() pthread_mutex_unlock(&context_mutex)
 #endif
-#else /*_REENTRANT*/
+#else /*multi-threaded*/
 #define LOCK()
 #define UNLOCK()
 #define LOCK_CONTEXTS()
 #define UNLOCK_CONTEXTS()
-#endif
+#endif /*multi-threaded*/
 
 #if !defined(HAVE_TIMEGM) && defined(HAVE_MKTIME) && defined(USE_UTC)
 #define EMULATE_TIMEGM
