@@ -34,7 +34,7 @@ swipl_plugin(
     odbc
     MODULE odbc4pl
     C_SOURCES odbc.c
-    C_LIBS ${ODBC_LIBRARIES}
+    THREADED C_LIBS ${ODBC_LIBRARIES}
     C_INCLUDE_DIR ${ODBC_INCLUDE_DIR}
     PL_LIBS odbc.pl)
 
