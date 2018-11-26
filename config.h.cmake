@@ -14,3 +14,4 @@
 #cmakedefine SIZEOF_WCHAR_T @SIZEOF_WCHAR_T@
 #cmakedefine _REENTRANT @_REENTRANT@
 #cmakedefine O_PLMT @O_PLMT@
+#cmakedefine WORDS_BIGENDIAN @WORDS_BIGENDIAN@
