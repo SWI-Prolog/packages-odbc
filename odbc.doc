@@ -661,7 +661,7 @@ This facet returns the number of columns in a table.
     \predicate{odbc_table_column}{3}{+Connection, ?Table, ?Column}
 On backtracking, enumerate all columns in all tables.
 
-    \predicate{odbc_table_column}{3}{+Connection, ?Table, ?Column, ?Facet}
+    \predicate{odbc_table_column}{4}{+Connection, ?Table, ?Column, ?Facet}
 Provides access to the properties of the table as defined by the ODBC
 call SQLColumns().  Defined facets are:
 
