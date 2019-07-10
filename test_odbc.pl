@@ -183,6 +183,7 @@ types we test this too.
 %
 %     - -1, when read as a float is 4294967295.0
 %     - Writing integers as text does not work.
+%     - Decimal tests strip trailing 0s
 
 type(integer,
      integer = [-1, 0, 42, '$null$' ],
@@ -211,12 +212,12 @@ type(float,
      ],
      []).
 type(decimal(10,2),
-     atom = ['3.43', '4.50', '5.00', '$null$'],
+     atom = ['3.43', '4.55', '5.05', '$null$'],
      [
      ],
      []).
 type(decimal(6,2),                      % truncating test
-     atom = ['1000.00'],
+     atom = ['1000.01'],
      [
      ],
      []).
@@ -275,7 +276,8 @@ type(varbinary(20),
             ],
      [
      ],
-     [ \+ dbms_name('MySQL')
+     [ \+ dbms_name('MySQL'),
+       \+ dbms_name('SQLite')
      ]).
 type(blob,                      % mySql blob
      atom = [ foo,
@@ -295,8 +297,9 @@ type(longblob,                  % mySql blob
      [ odbc_type(longvarbinary),
        dbms_name('MySQL')               % MySQL specific test
      ]) :-
-    read_file_to_codes('odbc.pdf', Codes, [encoding(octet)]),
-    atom_codes(BIG, Codes).
+    length(Bytes, 10 000),
+    maplist(random_between(0, 255), Bytes),
+    atom_codes(BIG, Bytes).
 type(date - 'Type date',
      date = [ date(1960,3,19) ],
      [
@@ -373,6 +376,12 @@ applicable([H|T], Type) :-
 applicable(\+ Option, Type) :-
     !,
     \+ applicable(Option, Type).
+applicable((A;B), Type) :-
+    !,
+    (   applicable(A, Type)
+    ->  true
+    ;   applicable(B, Type)
+    ).
 applicable(dbms_name(DB), _) :-
     !,
     odbc_get_connection(test, dbms_name(DB)).
