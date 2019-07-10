@@ -2493,9 +2493,12 @@ odbc_row(context *ctxt, term_t trow)
 
   for(;;)				/* normal non-deterministic access */
   { if ( true(ctxt, CTX_PREFETCHED) )
-      clear(ctxt, CTX_PREFETCHED);
-    else
-      TRY(ctxt, SQLFetch(ctxt->hstmt), close_context(ctxt));
+    { clear(ctxt, CTX_PREFETCHED);
+    } else
+    { TRY(ctxt, SQLFetch(ctxt->hstmt), close_context(ctxt));
+      if ( ctxt->rc == SQL_NO_DATA_FOUND )
+	return FALSE;
+    }
 
     if ( !pl_put_row(local_trow, ctxt) )
     { close_context(ctxt);
