@@ -3764,6 +3764,31 @@ get_scroll_param(term_t param, int *orientation, long *offset)
 }
 
 
+static foreign_t
+odbc_next_result_set(term_t qid, control_t handle)
+{ context *ctxt;
+  int rc;
+  if ( !getStmt(qid, &ctxt) )
+    return FALSE;
+  if ( false(ctxt, CTX_NOAUTO) || false(ctxt, CTX_INUSE) || false(ctxt, CTX_BOUND) )
+    return permission_error("next_result_set", "statement", qid);
+  rc = SQLMoreResults(ctxt->hstmt);
+  switch (rc)
+  { case SQL_NO_DATA_FOUND:
+      PL_fail;
+    case SQL_SUCCESS_WITH_INFO:
+      report_status(ctxt);
+      /*FALLTHROUGH*/
+    case SQL_SUCCESS:
+      PL_succeed;
+    default:
+      if ( !report_status(ctxt) )
+      { close_context(ctxt);
+	return FALSE;
+      }
+      return TRUE;
+  }
+}
 
 static foreign_t
 odbc_fetch(term_t qid, term_t row, term_t options)
@@ -3807,7 +3832,6 @@ odbc_fetch(term_t qid, term_t row, term_t options)
 
   switch(ctxt->rc)
   { case SQL_NO_DATA_FOUND:		/* no alternative */
-      close_context(ctxt);
       return PL_unify_atom(row, ATOM_end_of_file);
     case SQL_SUCCESS_WITH_INFO:
       report_status(ctxt);
@@ -3998,6 +4022,7 @@ install_odbc4pl()
    DET("odbc_free_statement",	   1, odbc_free_statement);
    NDET("odbc_execute",		   3, odbc_execute);
    DET("odbc_fetch",		   3, odbc_fetch);
+   DET("odbc_next_result_set",	   1, odbc_next_result_set);
    DET("odbc_close_statement",	   1, odbc_close_statement);
    DET("odbc_cancel_thread",	   1, odbc_cancel_thread);
 

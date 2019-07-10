@@ -613,6 +613,50 @@ Closes the given statement (without freeing it).  This must be used
 if not the whole result-set is retrieved using odbc_fetch/3.
 \end{description}
 
+\subsubsection{Fetching data from multiple result sets}
+\label{sec:sqlresultsets}
+
+Most SQL queries return only a single result set - a list of
+rows. However, some queries can return more than one result set. For
+example, 'SELECT 1; SELECT 2' is a batch query that returns a single
+row (1) and then a single row(2). Queries involving stored procedures
+can easily generate such results.
+
+To retrieve data from a subsequent result set, odbc_next_result_set/1
+can be used, but only for prepared queries which were prepared with
+fetch(fetch) as the fetch style in the option list.
+
+\begin{description}
+    \predicate{odbc_next_result_set}{1}{+Statement}
+Succeeds if there is another result set, and positions the cursor at
+    the first row of the new result set. If there are no more result
+    sets, the predicate fails.
+
+\begin{code}
+fetch(Options) :-
+	odbc_prepare(test,
+		     'select (testval) from test; select (anotherval)
+		     from some_other_table',
+		     [],
+		     Statement,
+		     [ fetch(fetch)
+		     ]),
+	odbc_execute(Statement, []),
+	fetch(Statement, Options).
+
+fetch(Statement, Options) :-
+	odbc_fetch(Statement, Row, Options),
+	(   Row == end_of_file
+	->  (   odbc_next_result_set(Statement)
+	    ->  writeln(next_result_set),
+		fetch(Statement, Options)
+	    ;   true
+	    )
+	;   writeln(Row),
+	    fetch(Statement, Options)
+	).
+\end{code}
+\end{description}
 
 \subsection{Transaction management}		\label{sec:sqltrans}
 
