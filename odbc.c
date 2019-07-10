@@ -439,7 +439,7 @@ report_status(context *ctxt)
 	return TRUE;
       break;
     case SQL_NO_DATA_FOUND:
-      return FALSE;
+      return TRUE;
     case SQL_INVALID_HANDLE:
       return PL_warning("Invalid handle: %p", ctxt->hstmt);
   }
@@ -2436,12 +2436,14 @@ odbc_row(context *ctxt, term_t trow)
   }
 
   if ( !ctxt->result )			/* not a SELECT statement */
-  { SQLLEN rows;			/* was DWORD */
+  { SQLLEN rows = 0;			/* was DWORD */
     int rval;
 
-    ctxt->rc = SQLRowCount(ctxt->hstmt, &rows);
+    if ( ctxt->rc != SQL_NO_DATA_FOUND )
+      ctxt->rc = SQLRowCount(ctxt->hstmt, &rows);
     if ( ctxt->rc == SQL_SUCCESS ||
-	 ctxt->rc == SQL_SUCCESS_WITH_INFO )
+	 ctxt->rc == SQL_SUCCESS_WITH_INFO ||
+	 ctxt->rc == SQL_NO_DATA_FOUND )
       rval = PL_unify_term(trow,
 			   PL_FUNCTOR, FUNCTOR_affected1,
 			     PL_LONG, (long)rows);
@@ -2452,6 +2454,9 @@ odbc_row(context *ctxt, term_t trow)
 
     return rval;
   }
+
+  if ( ctxt->rc == SQL_NO_DATA_FOUND )
+    return FALSE;
 
   if ( ctxt->findall )			/* findall: return the whole set */
   { term_t tail = PL_copy_term_ref(trow);
