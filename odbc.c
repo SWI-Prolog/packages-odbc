@@ -3816,6 +3816,20 @@ odbc_fetch(term_t qid, term_t row, term_t options)
     set(ctxt, CTX_BOUND);
   }
 
+  if ( !ctxt->result )			/* not a SELECT statement */
+  { SQLLEN rows = 0;			/* was DWORD */
+
+    if ( ctxt->rc != SQL_NO_DATA_FOUND )
+      ctxt->rc = SQLRowCount(ctxt->hstmt, &rows);
+    if ( ctxt->rc == SQL_SUCCESS ||
+	 ctxt->rc == SQL_SUCCESS_WITH_INFO ||
+	 ctxt->rc == SQL_NO_DATA_FOUND )
+      return PL_unify_term(row,
+			   PL_FUNCTOR, FUNCTOR_affected1,
+			   PL_LONG, (long)rows);
+    return report_status(ctxt);
+  }
+
   if ( PL_get_nil(options) )
   { orientation = SQL_FETCH_NEXT;
   } else if ( PL_is_list(options) )
