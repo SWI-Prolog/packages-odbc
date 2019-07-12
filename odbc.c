@@ -3781,6 +3781,13 @@ odbc_next_result_set(term_t qid, control_t handle)
   if ( false(ctxt, CTX_NOAUTO) || false(ctxt, CTX_INUSE) || false(ctxt, CTX_BOUND) )
     return permission_error("next_result_set", "statement", qid);
   rc = SQLMoreResults(ctxt->hstmt);
+  /* We now need to free the buffers used to retrieve the previous result set and
+     re-prepare them for the new result set
+  */
+  SQLFreeStmt(ctxt->hstmt, SQL_UNBIND);
+  free_parameters(ctxt->NumCols, ctxt->result);
+  ctxt->result = NULL;
+
   switch (rc)
   { case SQL_NO_DATA_FOUND:
       PL_fail;
