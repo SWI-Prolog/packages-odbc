@@ -3787,6 +3787,7 @@ odbc_next_result_set(term_t qid, control_t handle)
   SQLFreeStmt(ctxt->hstmt, SQL_UNBIND);
   free_parameters(ctxt->NumCols, ctxt->result);
   ctxt->result = NULL;
+  clear(ctxt, CTX_BOUND);
 
   switch (rc)
   { case SQL_NO_DATA_FOUND:
