@@ -124,6 +124,7 @@ static pthread_mutex_t context_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define UNLOCK()
 #define LOCK_CONTEXTS()
 #define UNLOCK_CONTEXTS()
+#define INIT_CONTEXT_LOCK()
 #endif /*multi-threaded*/
 
 #if !defined(HAVE_TIMEGM) && defined(HAVE_MKTIME) && defined(USE_UTC)
