@@ -66,6 +66,7 @@
             odbc_table_primary_key/3,   % +Conn, ?Table, ?Column
             odbc_table_foreign_key/5,   % +Conn, ?PkTable, ?PkColumn, ?FkTable, ?FkColumn
 
+	    odbc_set_option/1,          % -Option
             odbc_statistics/1,          % -Value
             odbc_debug/1                % +Level
           ]).

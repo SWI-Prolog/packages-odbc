@@ -68,6 +68,18 @@ described here.
 \section{The ODBC layer}
 \label{sec:odbc}
 
+\subsection{Global configuration}
+
+    \predicate{odbc_set_option}{1}{+Property}
+Set global properties for the environment. This must be called before
+calling any other ODBC predicates. Permitted properties currently include
+    \begin{description}
+    \termitem{connection_pooling}{+bool}
+    If true, then enable connection pooling for the entire process. Note
+    that due to limitations of ODBC itself, it is not possible to turn
+    pooling off once enabled.
+    \end{description}
+
 \subsection{Connection management}
 \label{sec:odbc-connections}
 
@@ -111,6 +123,16 @@ requiring the dynamic cursor (which incurs an astounding 20-50x slowdown
 of query execution!!). MARS is a new feature in SQL2k5 apparently, and
 only works if you use the native driver. For the non-native driver,
 specifying that it is enabled will have absolutely no effect.
+
+    \termitem{connection_pool_mode}{+Bool}
+Determines how a connection is chosen from a connection pool if connection
+pooling is on. See odbc_set_option/1 for enabling pooling. Permitted
+values are 'strict' (Only connections that exactly match the connection
+options in the call and the connection attributes set by the application
+are reused. This is the default) and 'relaxed' (Connections with matching
+connection string keywords can be used. Keywords must match, but not all
+connection attributes must match.)
+
 
     \termitem{odbc_version}{+Atom}
 Select the version of the ODBC connection.  Default is \verb$'3.0'$.

@@ -176,6 +176,8 @@ static atom_t	 ATOM_last;
 static atom_t	 ATOM_absolute;
 static atom_t	 ATOM_relative;
 static atom_t	 ATOM_bookmark;
+static atom_t	 ATOM_strict;
+static atom_t	 ATOM_relaxed;
 
 static functor_t FUNCTOR_timestamp7;	/* timestamp/7 */
 static functor_t FUNCTOR_time3;		/* time/7 */
@@ -196,6 +198,8 @@ static functor_t FUNCTOR_password1;
 static functor_t FUNCTOR_driver_string1;
 static functor_t FUNCTOR_alias1;
 static functor_t FUNCTOR_mars1;
+static functor_t FUNCTOR_connection_pooling1;
+static functor_t FUNCTOR_connection_pool_mode1;
 static functor_t FUNCTOR_odbc_version1;
 static functor_t FUNCTOR_open1;
 static functor_t FUNCTOR_auto_commit1;
@@ -1440,6 +1444,7 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
    atom_t alias = 0;			/* alias-name */
    IOENC encoding = DEFAULT_ENCODING;	/* Connection encoding */
    int mars = 0;			/* mars-value */
+   atom_t pool_mode = 0;		/* Connection pooling mode */
    intptr_t odbc_version = SQL_OV_ODBC3;	/* ODBC connectivity version */
    atom_t open = 0;			/* open next connection */
    RETCODE rc;				/* result code for ODBC functions */
@@ -1470,7 +1475,12 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 	 return FALSE;
      } else if ( PL_is_functor(head, FUNCTOR_mars1) )
      { if ( !get_bool_arg_ex(1, head, &mars) )
+         return FALSE;
+     } else if ( PL_is_functor(head, FUNCTOR_connection_pool_mode1) )
+     { if ( !get_atom_arg_ex(1, head, &pool_mode) )
 	 return FALSE;
+       if ( pool_mode != ATOM_strict && pool_mode != ATOM_relaxed )
+	 return domain_error(head, "pool_mode");
      } else if ( PL_is_functor(head, FUNCTOR_odbc_version1) )
      { if ( !get_odbc_version_arg_ex(1, head, &odbc_version) )
 	 return FALSE;
@@ -1547,6 +1557,22 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
        return odbc_report(henv, NULL, NULL, rc);
      }
    }
+
+   if ( pool_mode )
+   { SQLPOINTER pool_arg = (SQLPOINTER)0;
+     if (pool_mode == ATOM_strict)
+       pool_arg = (SQLPOINTER)SQL_CP_STRICT_MATCH;
+     else if (pool_mode == ATOM_relaxed)
+       pool_arg = (SQLPOINTER)SQL_CP_RELAXED_MATCH;
+     if ( (rc=SQLSetConnectAttr(hdbc,
+                                SQL_ATTR_CP_MATCH,
+				pool_arg,
+                                SQL_IS_INTEGER)) != SQL_SUCCESS )
+     { SQLFreeConnect(hdbc);
+       return odbc_report(henv, NULL, NULL, rc);
+     }
+   }
+
 
    /* Connect to a data source. */
    if ( driver_string != NULL )
@@ -3958,6 +3984,25 @@ odbc_debug(term_t level)
   return TRUE;
 }
 
+static foreign_t
+pl_odbc_set_option(term_t option)
+{
+  if ( PL_is_functor(option, FUNCTOR_connection_pooling1) )
+  { int is_pooled = 0;
+    if ( !get_bool_arg_ex(1, option, &is_pooled) )
+      return FALSE;
+    if (is_pooled)    /* Note that it is not possible to turn pooling off once it is turned on */
+    { if ( SQLSetEnvAttr(NULL,
+			 SQL_ATTR_CONNECTION_POOLING,
+			 (SQLPOINTER)SQL_CP_ONE_PER_HENV,
+			 SQL_IS_INTEGER) != SQL_SUCCESS)
+      { return PL_warning("Could not configure connection pooling");
+      }
+    }
+  }
+  return TRUE;
+}
+
 
 #define MKFUNCTOR(name, arity) PL_new_functor(PL_new_atom(name), arity)
 #define NDET(name, arity, func) PL_register_foreign(name, arity, func, \
@@ -4001,6 +4046,8 @@ install_odbc4pl()
    ATOM_absolute      = PL_new_atom("absolute");
    ATOM_relative      = PL_new_atom("relative");
    ATOM_bookmark      = PL_new_atom("bookmark");
+   ATOM_strict        = PL_new_atom("strict");
+   ATOM_relaxed       = PL_new_atom("relaxed");
 
    FUNCTOR_timestamp7		 = MKFUNCTOR("timestamp", 7);
    FUNCTOR_time3		 = MKFUNCTOR("time", 3);
@@ -4021,6 +4068,8 @@ install_odbc4pl()
    FUNCTOR_driver_string1	 = MKFUNCTOR("driver_string", 1);
    FUNCTOR_alias1		 = MKFUNCTOR("alias", 1);
    FUNCTOR_mars1		 = MKFUNCTOR("mars", 1);
+   FUNCTOR_connection_pooling1	 = MKFUNCTOR("connection_pooling", 1);
+   FUNCTOR_connection_pool_mode1 = MKFUNCTOR("connection_pool_mode", 1);
    FUNCTOR_odbc_version1	 = MKFUNCTOR("odbc_version", 1);
    FUNCTOR_open1		 = MKFUNCTOR("open", 1);
    FUNCTOR_auto_commit1		 = MKFUNCTOR("auto_commit", 1);
@@ -4041,6 +4090,7 @@ install_odbc4pl()
    FUNCTOR_fetch1		 = MKFUNCTOR("fetch", 1);
    FUNCTOR_wide_column_threshold1= MKFUNCTOR("wide_column_threshold", 1);
 
+   DET("odbc_set_option",	   1, pl_odbc_set_option);
    DET("odbc_connect",		   3, pl_odbc_connect);
    DET("odbc_disconnect",	   1, pl_odbc_disconnect);
    DET("odbc_current_connections", 3, odbc_current_connections);
