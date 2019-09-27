@@ -69,6 +69,7 @@ described here.
 \label{sec:odbc}
 
 \subsection{Global configuration}
+\label{sec:odbc-global-config}
 
     \predicate{odbc_set_option}{1}{+Property}
 Set global properties for the environment. This must be called before
