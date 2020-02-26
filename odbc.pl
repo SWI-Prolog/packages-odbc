@@ -70,8 +70,7 @@
             odbc_statistics/1,          % -Value
             odbc_debug/1                % +Level
           ]).
-:- use_module(library(shlib)).
-:- use_module(library(lists)).
+:- autoload(library(lists),[member/2]).
 
 :- use_foreign_library(foreign(odbc4pl)).
 
