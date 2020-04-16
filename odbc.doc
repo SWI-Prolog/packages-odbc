@@ -634,7 +634,7 @@ fetch(Statement, Options) :-
 	).
 \end{code}
 
-    \predicate{odbc_close_statement}{+Statement}
+    \predicate{odbc_close_statement}{1}{+Statement}
 Closes the given statement (without freeing it).  This must be used
 if not the whole result-set is retrieved using odbc_fetch/3.
 \end{description}
