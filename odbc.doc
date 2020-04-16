@@ -71,6 +71,7 @@ described here.
 \subsection{Global configuration}
 \label{sec:odbc-global-config}
 
+\begin{description}
     \predicate{odbc_set_option}{1}{+Property}
 Set global properties for the environment. This must be called before
 calling any other ODBC predicates. Permitted properties currently include
@@ -80,6 +81,8 @@ calling any other ODBC predicates. Permitted properties currently include
     that due to limitations of ODBC itself, it is not possible to turn
     pooling off once enabled.
     \end{description}
+\end{description}
+
 
 \subsection{Connection management}
 \label{sec:odbc-connections}
