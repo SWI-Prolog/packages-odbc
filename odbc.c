@@ -398,15 +398,17 @@ odbc_report(HENV henv, HDBC hdbc, HSTMT hstmt, RETCODE rc)
   { case SQL_SUCCESS_WITH_INFO:
     { fid_t fid = PL_open_foreign_frame();
       predicate_t pred = PL_predicate("print_message", 2, "user");
-      term_t av = PL_new_term_refs(2);
+      term_t av;
+      int rc;
 
-      PL_put_atom(av+0, ATOM_informational);
-      PL_put_term(av+1, msg);
-
-      PL_call_predicate(NULL, PL_Q_NORMAL, pred, av);
+      rc = ( (av = PL_new_term_refs(2)) &&
+	     PL_put_atom(av+0, ATOM_informational) &&
+	     PL_put_term(av+1, msg) &&
+	     PL_call_predicate(NULL, PL_Q_NORMAL, pred, av)
+	   );
       PL_discard_foreign_frame(fid);
 
-      return TRUE;
+      return rc;
     }
     case SQL_ERROR:
     { term_t ex;
@@ -1250,7 +1252,8 @@ build_term(context *ctxt, code *PC, term_t result)
       return PC;
     }
     case PL_TERM:
-    { PL_put_term(result, (term_t)*PC++);
+    { if ( !PL_put_term(result, (term_t)*PC++) )
+	return NULL;
       return PC;
     }
     case PL_FUNCTOR:
@@ -1502,8 +1505,9 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 		 PL_is_functor(head, FUNCTOR_cursor_type1) ||
 		 PL_is_functor(head, FUNCTOR_wide_column_threshold1) )
      { if ( nafter < MAX_AFTER_OPTIONS )
-	 PL_put_term(after_open+nafter++, head);
-       else
+       { if ( !PL_put_term(after_open+nafter++, head) )
+	   return FALSE;
+       } else
 	 return PL_warning("Too many options"); /* shouldn't happen */
      } else
        return domain_error(head, "odbc_option");
