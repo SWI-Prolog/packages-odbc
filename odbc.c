@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2002-2018, University of Amsterdam,
+    Copyright (c)  2002-2020, University of Amsterdam,
                               VU University Amsterdam
     All rights reserved.
 
@@ -57,6 +57,7 @@ static int odbc_debuglevel = 0;
 #include <sqlext.h>
 #include <time.h>
 #include <limits.h>			/* LONG_MAX, etc. */
+#include <math.h>
 
 #ifndef HAVE_SQLLEN
 #define SQLLEN DWORD
@@ -3421,7 +3422,7 @@ get_timestamp(term_t t, SQL_TIMESTAMP_STRUCT* stamp)
 
     return TRUE;
 #if defined(HAVE_LOCALTIME) || defined(HAVE_GMTIME)
-  } else if ( PL_get_float(t, &tf) && tf <= LONG_MAX && tf >= LONG_MIN )
+  } else if ( PL_get_float(t, &tf) )
   { time_t t = (time_t)tf;
     long  ns = (long)((tf - (double)t) * 1000000000.0);
 #if defined(HAVE_GMTIME) && defined USE_UTC
@@ -3429,6 +3430,9 @@ get_timestamp(term_t t, SQL_TIMESTAMP_STRUCT* stamp)
 #else
     struct tm *tm = localtime(&t);
 #endif
+
+    if ( fabs(tf - (double)t) > 1.0 )
+      return FALSE;			/* out of range */
 
     stamp->year	    = tm->tm_year + 1900;
     stamp->month    = tm->tm_mon + 1;
