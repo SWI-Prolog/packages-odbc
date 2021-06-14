@@ -3,8 +3,9 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2002-2020, University of Amsterdam,
-                              VU University Amsterdam
+    Copyright (c)  2002-2021, University of Amsterdam,
+                              VU University Amsterdam,
+			      SWI-Prolog Solutions b.v.
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -103,6 +104,9 @@ static int odbc_debuglevel = 0;
 #define CVNERR -1			/* conversion error */
 
 #if defined(_REENTRANT) || defined(O_PLTM)
+#ifndef O_PLTM
+#define O_PLTM
+#endif
 #include <pthread.h>
 
 					/* FIXME: Actually use these */
@@ -3931,6 +3935,7 @@ odbc_close_statement(term_t qid)
   return TRUE;
 }
 
+#ifdef O_PLTM
 static foreign_t
 odbc_cancel_thread(term_t Tid)
 { int tid;
@@ -3947,6 +3952,7 @@ odbc_cancel_thread(term_t Tid)
 
   return TRUE;
 }
+#endif
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4113,7 +4119,9 @@ install_odbc4pl()
    DET("odbc_fetch",		   3, odbc_fetch);
    DET("odbc_next_result_set",	   1, odbc_next_result_set);
    DET("odbc_close_statement",	   1, odbc_close_statement);
+#ifdef O_PLTM
    DET("odbc_cancel_thread",	   1, odbc_cancel_thread);
+#endif
 
    NDET("odbc_query",		   4, pl_odbc_query);
    NDET("odbc_tables",	           2, odbc_tables);
