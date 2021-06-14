@@ -103,10 +103,7 @@ static int odbc_debuglevel = 0;
 #define NameBufferLength 256
 #define CVNERR -1			/* conversion error */
 
-#if defined(_REENTRANT) || defined(O_PLTM)
-#ifndef O_PLTM
-#define O_PLTM
-#endif
+#if defined(_REENTRANT) && defined(O_PLMT)
 #include <pthread.h>
 
 					/* FIXME: Actually use these */
@@ -3935,7 +3932,7 @@ odbc_close_statement(term_t qid)
   return TRUE;
 }
 
-#ifdef O_PLTM
+#ifdef O_PLMT
 static foreign_t
 odbc_cancel_thread(term_t Tid)
 { int tid;
@@ -4119,7 +4116,7 @@ install_odbc4pl()
    DET("odbc_fetch",		   3, odbc_fetch);
    DET("odbc_next_result_set",	   1, odbc_next_result_set);
    DET("odbc_close_statement",	   1, odbc_close_statement);
-#ifdef O_PLTM
+#ifdef O_PLMT
    DET("odbc_cancel_thread",	   1, odbc_cancel_thread);
 #endif
 
