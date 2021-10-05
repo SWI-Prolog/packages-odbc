@@ -378,15 +378,23 @@ odbc_report(HENV henv, HDBC hdbc, HSTMT hstmt, RETCODE rc)
 	return TRUE;
       /*FALLTHROUGH*/
     case SQL_SUCCESS:
+    { term_t s;
+
       if ( msglen > SQL_MAX_MESSAGE_LENGTH )
 	msglen = SQL_MAX_MESSAGE_LENGTH; /* TBD: get the rest? */
-      if ( !PL_unify_term(msg,
-			  PL_FUNCTOR, FUNCTOR_odbc3,
-			    PL_CHARS,   state,
-			    PL_INTEGER, (long)native,
-			    PL_NCHARS,  (size_t)msglen, message) )
-	return FALSE;
-      break;
+
+      if ( (s = PL_new_term_ref()) &&
+	   PL_unify_chars(s, PL_STRING|REP_MB,
+			  (size_t)msglen, (const char*)message) &&
+	   PL_unify_term(msg,
+			 PL_FUNCTOR, FUNCTOR_odbc3,
+			   PL_CHARS,   state,
+			   PL_INTEGER, (long)native,
+			   PL_TERM,    s) )
+	break;
+
+      return FALSE;
+    }
     case SQL_INVALID_HANDLE:
       return PL_warning("ODBC INTERNAL ERROR: Invalid handle in error");
     default:
