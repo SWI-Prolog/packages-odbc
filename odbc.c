@@ -136,13 +136,11 @@ static time_t timegm(struct tm *tm);
 #endif
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Work around bug in MS SQL Server that reports NumCols of SQLColumns()
-as 19, while there are only 12.  Grrr!
-
-This bug appears fixed now, so we'll remove the work-around
+Work around bug in MS SQL Server  that doesn't allow for SQLGetData() on
+SQLColumns(). Grrr!
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-/*#define SQL_SERVER_BUG	1*/
+#define SQL_SERVER_BUG	1
 
 static atom_t    ATOM_row;		/* "row" */
 static atom_t    ATOM_informational;	/* "informational" */
@@ -2296,11 +2294,6 @@ prepare_result(context *ctxt)
   parameter *ptr_result;
   SQLSMALLINT ncol;
 
-#ifdef SQL_SERVER_BUG
-  if ( true(ctxt, CTX_COLUMNS) )
-    ncol = 12;
-  else
-#endif
   SQLNumResultCols(ctxt->hstmt, &ncol);
   if ( ncol == 0 )
     return TRUE;			/* no results */
@@ -2805,6 +2798,9 @@ pl_odbc_column(term_t conn, term_t db, term_t row, control_t handle)
 	return FALSE;
       ctxt->null = NULL;		/* use default $null$ */
       set(ctxt, CTX_COLUMNS);
+#ifdef SQL_SERVER_BUG
+      ctxt->max_nogetdata = 8192;	/* > the 4K width column for the name */
+#endif
       TRY(ctxt,
 	  SQLColumns(ctxt->hstmt, NULL, 0, NULL, 0,
 		     (SQLCHAR*)s, (SWORD)len, NULL, 0),
@@ -4263,10 +4259,6 @@ pl_put_column(context *c, int nth, term_t col)
     If ptr_value is NULL, prepare_result() has not used SQLBindCol() due
     to a potentionally too large field such as for SQL_LONGVARCHAR
     columns.
-
-There is a lot of odd code around the SQL_SERVER_BUG below. It turns out
-Microsoft SQL Server sometimes gives the wrong length indication as well
-as the wrong number of pad bytes for the first part of the data.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static int
@@ -4417,12 +4409,7 @@ pl_put_column(context *c, int nth, term_t col)
           return FALSE;
 	memcpy(data, buf, sizeof(buf));	/* you don't get the data twice! */
 	ep = data+sizeof(buf)-pad;
-#ifdef SQL_SERVER_BUG			/* compensate for wrong pad info */
-        while(ep>data && ep[-1] == 0)
-	{ ep--;
-	  todo++;
-	}
-#endif
+
 	while(todo > 0)
 	{ c->rc = SQLGetData(c->hstmt, (UWORD)(nth+1), p->cTypeID,
 			     ep, todo, &len2);
