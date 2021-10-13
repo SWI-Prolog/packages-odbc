@@ -2490,7 +2490,9 @@ odbc_row(context *ctxt, term_t trow)
   }
 
   if ( ctxt->rc == SQL_NO_DATA_FOUND )
+  { close_context(ctxt);
     return FALSE;
+  }
 
   if ( ctxt->findall )			/* findall: return the whole set */
   { term_t tail = PL_copy_term_ref(trow);
@@ -2531,7 +2533,9 @@ odbc_row(context *ctxt, term_t trow)
     } else
     { TRY(ctxt, SQLFetch(ctxt->hstmt), close_context(ctxt));
       if ( ctxt->rc == SQL_NO_DATA_FOUND )
+      { close_context(ctxt);
 	return FALSE;
+      }
     }
 
     if ( !pl_put_row(local_trow, ctxt) )
