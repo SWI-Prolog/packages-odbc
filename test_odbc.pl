@@ -63,36 +63,41 @@ databases.
 %!  test_odbc(+ConnectString) is semidet.
 %!  test_odbc(+DSN, +Options) is semidet.
 %
-%   Run ODBC tests.  Without  options,  this   tries  to  create  an
-%   anonymous  memory  based  ODBC  connection  using  SQLite.  This
-%   requires the SQLite driver  to  be   configured  on  the hosting
-%   machine. With options, odbc_connect/3 is called with the DSN and
-%   options.  The caller must ensure ODBC is properly installed.
-
-run_odbc_tests :-
-    \+ getenv('USE_ODBC_TESTS', false).
+%   Run ODBC tests. Without options, this   tries to create an anonymous
+%   memory based ODBC connection using SQLite.  This requires the SQLite
+%   driver to be configured  on  the   hosting  machine.  With  options,
+%   odbc_connect/3 is called with the DSN   and options. The caller must
+%   ensure ODBC is properly installed.
+%
+%   Set SWIPL_TEST_ODBC_DRIVER="DRIVER=SQLite3;Database=test.sqlite"  to
+%   run the ODBC tests with the SQLite3 driver.
 
 test_odbc :-
-    (   run_odbc_tests
-    ->  test_odbc('DRIVER=SQLite3;Database=test.sqlite')
+    (   getenv('SWIPL_TEST_ODBC_DRIVER', Driver)
+    ->  test_odbc(Driver)
     ;   true
     ).
 test_odbc(ConnectString) :-
-    delete_db_file(ConnectString),
-    catch(open_db(ConnectString), E, print_message(error, E)),
-    (   var(E)
-    ->  run_tests([ odbc
-                  ])
-    ;   true
-    ),
-    delete_db_file(ConnectString).
+    run_odbc_test(ConnectString).
 test_odbc(DSN, Options) :-
-    catch(open_db(DSN-Options), E, print_message(error, E)),
-    (   var(E)
-    ->  run_tests([ odbc
-                  ])
-    ;   true
-    ).
+    run_odbc_test(DSN-Options).
+
+run_odbc_test(On) :-
+    delete_db_file(On),
+    setup_call_cleanup(
+        catch(open_db(On), E, print_message(error, E)),
+        (   var(E)
+        ->  run_tests([odbc])
+        ;   true
+        ),
+        (   var(E)
+        ->  cleanup_db(On)
+        ;   true
+        )).
+
+cleanup_db(On) :-
+    odbc_disconnect(test),
+    delete_db_file(On).
 
 :- dynamic
     params/1.
@@ -119,6 +124,7 @@ open_db :-
     open_db(Params).
 
 delete_db_file(ConnectString) :-
+    atomic(ConnectString),
     split_string(ConnectString, ";", " ", Parts),
     member(Part, Parts),
     split_string(Part, "=", "", ["Database",File]),
@@ -157,7 +163,8 @@ test(cursor,
        all(Name1-Name2 == [john-john, bob-bob, bob-mary,
                            chris-chris, mary-bob, mary-mary])
      ]) :-
-    same_mark(Name1, Name2).
+    call_cleanup(same_mark(Name1, Name2),
+                 delete_statements).
 
 :- end_tests(odbc).
 
@@ -743,6 +750,9 @@ INSERT INTO `People` (`ID`, `fname`, `addr`) VALUES
 -- 2013-01-03 09:05:38
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+:- dynamic
+    passwd/1.
 
 test_keys_connect(Cn) :-
     ( passwd(Pwd) -> true ; getpass(Pwd), assert(passwd(Pwd)) ),
