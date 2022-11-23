@@ -4,7 +4,7 @@
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
     Copyright (c)  2002-2021, University of Amsterdam,
-                              VU University Amsterdam,
+			      VU University Amsterdam,
 			      SWI-Prolog Solutions b.v.
     All rights reserved.
 
@@ -472,8 +472,8 @@ type_error(term_t actual, const char *expected)
        PL_unify_term(ex,
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_type_error2,
-		         PL_CHARS, expected,
-		         PL_TERM, actual,
+			 PL_CHARS, expected,
+			 PL_TERM, actual,
 		       PL_VARIABLE) )
     return PL_raise_exception(ex);
 
@@ -488,8 +488,8 @@ domain_error(term_t actual, const char *expected)
        PL_unify_term(ex,
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_domain_error2,
-		         PL_CHARS, expected,
-		         PL_TERM, actual,
+			 PL_CHARS, expected,
+			 PL_TERM, actual,
 		       PL_VARIABLE) )
     return PL_raise_exception(ex);
 
@@ -504,8 +504,8 @@ existence_error(term_t actual, const char *expected)
        PL_unify_term(ex,
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_existence_error2,
-		         PL_CHARS, expected,
-		         PL_TERM, actual,
+			 PL_CHARS, expected,
+			 PL_TERM, actual,
 		       PL_VARIABLE) )
     return PL_raise_exception(ex);
 
@@ -520,7 +520,7 @@ resource_error(const char *error)
        PL_unify_term(ex,
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_resource_error1,
-		         PL_CHARS, error,
+			 PL_CHARS, error,
 		       PL_VARIABLE) )
     return PL_raise_exception(ex);
 
@@ -536,7 +536,7 @@ representation_error(term_t t, const char *error)
        PL_unify_term(ex,
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_representation_error1,
-		         PL_CHARS, error,
+			 PL_CHARS, error,
 		       PL_TERM, t) )
     return PL_raise_exception(ex);
 
@@ -553,7 +553,7 @@ context_error(term_t term, const char *error, const char *what)
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_context_error3,
 			 PL_TERM, term,
-		         PL_CHARS, error,
+			 PL_CHARS, error,
 			 PL_CHARS, what,
 		       PL_VARIABLE) )
     return PL_raise_exception(ex);
@@ -570,7 +570,7 @@ permission_error(const char *op, const char *type, term_t obj)
        PL_unify_term(ex,
 		     PL_FUNCTOR, FUNCTOR_error2,
 		       PL_FUNCTOR, FUNCTOR_permission_error3,
-		         PL_CHARS, op,
+			 PL_CHARS, op,
 			 PL_CHARS, type,
 			 PL_TERM, obj,
 		       PL_VARIABLE) )
@@ -891,10 +891,10 @@ free_nulldef(nulldef *nd)
   { switch(nd->nulltype)
     { case NULL_ATOM:
 	PL_unregister_atom(nd->nullvalue.atom);
-        break;
+	break;
       case NULL_RECORD:
 	PL_erase(nd->nullvalue.record);
-        break;
+	break;
       default:
 	break;
     }
@@ -918,7 +918,7 @@ put_sql_null(term_t t, nulldef *nd)
 	return PL_recorded(nd->nullvalue.record, t);
       default:
 	assert(0);
-        return FALSE;
+	return FALSE;
     }
   } else
     return PL_put_atom(t, ATOM_null);
@@ -945,7 +945,7 @@ is_sql_null(term_t t, nulldef *nd)
       }
       default:				/* should not happen */
 	assert(0);
-        return FALSE;
+	return FALSE;
     }
   } else
   { atom_t a;
@@ -1037,7 +1037,7 @@ compile_arg(compile_info *info, term_t t)
     { atom_t val;
 
       if ( !PL_get_atom(t, &val) )
-        assert(0);
+	assert(0);
       ADDCODE_1(info, PL_ATOM, val);
       if ( true(info, CTX_PERSISTENT) )
 	PL_register_atom(val);
@@ -1051,28 +1051,28 @@ compile_arg(compile_info *info, term_t t)
 	  unsigned int i;
 
 	  if ( !PL_get_float(t, &v.asdouble) )
-            assert(0);
+	    assert(0);
 	  ADDCODE(info, PL_FLOAT);
 	  for(i=0; i<sizeof(double)/sizeof(code); i++)
 	    ADDCODE(info, v.ascode[i]);
 	} else				/* string */
 	{ size_t len;
 	  char *s, *cp = NULL;
-          wchar_t *w = NULL;
-          int flags = 0;
+	  wchar_t *w = NULL;
+	  int flags = 0;
 
 	  if (PL_get_string_chars(t, &s, &len))
-          { if ( !(cp = odbc_malloc(len+1)) )
+	  { if ( !(cp = odbc_malloc(len+1)) )
 	      return FALSE;
 	    memcpy(cp, s, len+1);
-          } else if (PL_get_wchars(t, &len, &w, CVT_STRING|CVT_EXCEPTION))
-          { if ( !(cp = odbc_malloc((len+1)*sizeof(wchar_t))) )
+	  } else if (PL_get_wchars(t, &len, &w, CVT_STRING|CVT_EXCEPTION))
+	  { if ( !(cp = odbc_malloc((len+1)*sizeof(wchar_t))) )
 	      return FALSE;
 	    memcpy(cp, w, (len+1)*sizeof(wchar_t));
-            flags |= PL_BLOB_WCHAR;
-          } else {
-            return FALSE;
-          }
+	    flags |= PL_BLOB_WCHAR;
+	  } else {
+	    return FALSE;
+	  }
 	  ADDCODE(info, PL_STRING);
 	  ADDCODE(info, flags);
 	  ADDCODE(info, len);
@@ -1087,7 +1087,7 @@ compile_arg(compile_info *info, term_t t)
     { int64_t v;
 
       if ( !PL_get_int64(t, &v) )
-        return PL_domain_error("int64", t);
+	return PL_domain_error("int64", t);
       ADDCODE_1(info, PL_INTEGER, v);
       break;
     }
@@ -1100,13 +1100,13 @@ compile_arg(compile_info *info, term_t t)
       term_t a = PL_new_term_ref();
 
       if ( !PL_get_functor(t, &f) )
-        assert(0);
+	assert(0);
       arity = PL_functor_arity(f);
       ADDCODE_1(info, PL_FUNCTOR, f);
       for(i=1; i<=arity; i++)
       { _PL_get_arg(i, t, a);
-        if ( !compile_arg(info, a) )
-          return FALSE;
+	if ( !compile_arg(info, a) )
+	  return FALSE;
       }
       break;
     }
@@ -1243,13 +1243,13 @@ build_term(context *ctxt, code *PC, term_t result)
     case PL_STRING:
     { if (((int)*PC++)&PL_BLOB_WCHAR)
       { size_t len = (size_t)*PC++;
-        wchar_t *w = (wchar_t*)*PC++;
-        if ( !PL_unify_wchars(result, PL_STRING, len, w) )
+	wchar_t *w = (wchar_t*)*PC++;
+	if ( !PL_unify_wchars(result, PL_STRING, len, w) )
 	  return NULL;
       } else
       { size_t len = (size_t)*PC++;
-        char *s = (char*)*PC++;
-        if ( !PL_put_string_nchars(result, len, s) )
+	char *s = (char*)*PC++;
+	if ( !PL_put_string_nchars(result, len, s) )
 	  return NULL;
       }
       return PC;
@@ -1426,7 +1426,7 @@ unify_connection(term_t t, connection *cn)
     return PL_unify_atom(t, cn->alias);
 
   return PL_unify_term(t, PL_FUNCTOR, FUNCTOR_odbc_connection1,
-		            PL_POINTER, cn);
+			    PL_POINTER, cn);
 }
 
 
@@ -1486,7 +1486,7 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
 	 return FALSE;
      } else if ( PL_is_functor(head, FUNCTOR_mars1) )
      { if ( !get_bool_arg_ex(1, head, &mars) )
-         return FALSE;
+	 return FALSE;
      } else if ( PL_is_functor(head, FUNCTOR_connection_pool_mode1) )
      { if ( !get_atom_arg_ex(1, head, &pool_mode) )
 	 return FALSE;
@@ -1577,9 +1577,9 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
      else if (pool_mode == ATOM_relaxed)
        pool_arg = (SQLPOINTER)SQL_CP_RELAXED_MATCH;
      if ( (rc=SQLSetConnectAttr(hdbc,
-                                SQL_ATTR_CP_MATCH,
+				SQL_ATTR_CP_MATCH,
 				pool_arg,
-                                SQL_IS_INTEGER)) != SQL_SUCCESS )
+				SQL_IS_INTEGER)) != SQL_SUCCESS )
      { SQLFreeConnect(hdbc);
        return odbc_report(henv, NULL, NULL, rc);
      }
@@ -1601,16 +1601,16 @@ pl_odbc_connect(term_t tdsource, term_t cid, term_t options)
        SQLSMALLINT connection_out_len;
 
        rc = SQLDriverConnect(hdbc,
-                             NULL, /* window handle */
-                             (SQLCHAR *)driver_string, SQL_NTS,
-                             connection_out, 1024,
-                             &connection_out_len,
-                             SQL_DRIVER_NOPROMPT);
+			     NULL, /* window handle */
+			     (SQLCHAR *)driver_string, SQL_NTS,
+			     connection_out, 1024,
+			     &connection_out_len,
+			     SQL_DRIVER_NOPROMPT);
      }
    } else
    { rc = SQLConnect(hdbc, (SQLCHAR *)dsource, SQL_NTS,
-                           (SQLCHAR *)uid,     SQL_NTS,
-                           (SQLCHAR *)pwd,     SQL_NTS);
+			   (SQLCHAR *)uid,     SQL_NTS,
+			   (SQLCHAR *)pwd,     SQL_NTS);
    }
    if ( rc == SQL_ERROR )
    { odbc_report(henv, hdbc, NULL, rc);
@@ -1686,8 +1686,8 @@ add_cid_dsn_pair(term_t list, connection *cn)
   if ( PL_unify_list(list, head, list) &&
        unify_connection(cnterm, cn) &&
        PL_unify_term(head, PL_FUNCTOR, FUNCTOR_minus2,
-		             PL_TERM, cnterm,
-		             PL_ATOM, cn->dsn) )
+			     PL_TERM, cnterm,
+			     PL_ATOM, cn->dsn) )
   { PL_reset_term_refs(cnterm);
     return TRUE;
   }
@@ -2012,9 +2012,12 @@ new_context(connection *cn)
 
 static void
 unmark_and_close_context(context *ctxt)
-{ LOCK_CONTEXTS();
+{ int self = PL_thread_self();
+
+  LOCK_CONTEXTS();
   clear(ctxt, CTX_EXECUTING);
-  executing_contexts[PL_thread_self()] = NULL;
+  if ( self >= 0 )
+    executing_contexts[self] = NULL;
   UNLOCK_CONTEXTS();
   close_context(ctxt);
 }
@@ -2137,13 +2140,13 @@ clone_context(context *in)
 
       switch(p->cTypeID)
       { case SQL_C_CHAR:
-        case SQL_C_WCHAR:
-        case SQL_C_BINARY:
-          /* if p->length_ind == 0 then we are using SQLPutData
-             and must not overwrite the index stored in ptr_value with
-             a buffer of 0 length!
-          */
-          if ( p->length_ind != 0 && !(p->ptr_value = odbc_malloc(p->length_ind+1)) )
+	case SQL_C_WCHAR:
+	case SQL_C_BINARY:
+	  /* if p->length_ind == 0 then we are using SQLPutData
+	     and must not overwrite the index stored in ptr_value with
+	     a buffer of 0 length!
+	  */
+	  if ( p->length_ind != 0 && !(p->ptr_value = odbc_malloc(p->length_ind+1)) )
 	    return NULL;
 	  vlenptr = &p->len_value;
 	  break;
@@ -2236,7 +2239,7 @@ get_sql_text(context *ctxt, term_t tquery)
 #if SIZEOF_SQLWCHAR != SIZEOF_WCHAR_T
       if ( PL_get_wchars(tquery, &qlen, &ws, CVT_ATOM|CVT_STRING))
       { wchar_t *es = ws+qlen;
-        SQLWCHAR *o, *q;
+	SQLWCHAR *o, *q;
 
 	q = PL_malloc((qlen+1)*sizeof(SQLWCHAR));
 	for(o=q; ws<es;)
@@ -2393,17 +2396,17 @@ prepare_result(context *ctxt)
 	if ( columnSize == 0 )
 	  goto use_sql_get_data;
 	columnSize += 2;		/* decimal dot and '-' sign */
-        /*FALLTHROUGH*/
+	/*FALLTHROUGH*/
       case SQL_C_BINARY:
 	if ( columnSize > ctxt->max_nogetdata || columnSize == 0 )
 	  goto use_sql_get_data;
-        ptr_result->len_value = sizeof(char)*(columnSize+1)*((ctxt->connection->encoding == ENC_UTF8)?4:1);
+	ptr_result->len_value = sizeof(char)*(columnSize+1)*((ctxt->connection->encoding == ENC_UTF8)?4:1);
 	break;
       case SQL_C_WCHAR:
 	if ( columnSize > ctxt->max_nogetdata || columnSize == 0 )
 	  goto use_sql_get_data;
-        ptr_result->len_value = sizeof(wchar_t)*(columnSize+1);
-        break;
+	ptr_result->len_value = sizeof(wchar_t)*(columnSize+1);
+	break;
       case SQL_C_SLONG:
 	ptr_result->len_value = sizeof(SQLINTEGER);
 	break;
@@ -2426,7 +2429,7 @@ prepare_result(context *ctxt)
 	Sdprintf("Oops: %s:%d: cTypeID = %d\n",
 		 __FILE__, __LINE__, ptr_result->cTypeID);
 	assert(0);
-        return FALSE;			/* make compiler happy */
+	return FALSE;			/* make compiler happy */
     }
 
   bind:
@@ -2557,7 +2560,7 @@ odbc_row(context *ctxt, term_t trow)
 	return TRUE;
       case SQL_SUCCESS_WITH_INFO:
 	report_status(ctxt);		/* Always returns TRUE */
-        /*FALLTHROUGH*/
+	/*FALLTHROUGH*/
       case SQL_SUCCESS:
 	set(ctxt, CTX_PREFETCHED);
 	PL_retry_address(ctxt);
@@ -2566,7 +2569,7 @@ odbc_row(context *ctxt, term_t trow)
 	{ close_context(ctxt);
 	  return FALSE;
 	}
-        return TRUE;
+	return TRUE;
     }
   }
 }
@@ -2685,7 +2688,8 @@ mark_context_as_executing(int self, context* ctxt)
       executing_contexts[i] = NULL;
   }
 
-  executing_contexts[self] = ctxt;
+  if ( self >= 0 )
+    executing_contexts[self] = ctxt;
   set(ctxt, CTX_EXECUTING);
 
   return TRUE;
@@ -2724,21 +2728,22 @@ pl_odbc_query(term_t conn, term_t tquery, term_t trow, term_t options,
       LOCK_CONTEXTS();
       if (!mark_context_as_executing(self, ctxt))
       { UNLOCK_CONTEXTS();
-        return FALSE;
+	return FALSE;
       }
       UNLOCK_CONTEXTS();
       if ( ctxt->char_width == 1 )
       { TRY(ctxt,
 	    SQLExecDirectA(ctxt->hstmt, ctxt->sqltext.a, ctxt->sqllen),
-            unmark_and_close_context(ctxt));
+	    unmark_and_close_context(ctxt));
       } else
       { TRY(ctxt,
 	    SQLExecDirectW(ctxt->hstmt, ctxt->sqltext.w, ctxt->sqllen),
-            unmark_and_close_context(ctxt));
+	    unmark_and_close_context(ctxt));
       }
       LOCK_CONTEXTS();
       clear(ctxt, CTX_EXECUTING);
-      executing_contexts[self] = NULL;
+      if ( self >= 0 )
+	executing_contexts[self] = NULL;
       UNLOCK_CONTEXTS();
       return odbc_row(ctxt, trow);
     }
@@ -2995,8 +3000,8 @@ odbc_data_sources(term_t list)
     { case SQL_SUCCESS:
       { if ( PL_unify_list(tail, head, tail) &&
 	     PL_unify_term(head, PL_FUNCTOR, FUNCTOR_data_source2,
-			           PL_NCHARS, (size_t)dsnlen, dsn,
-			           PL_NCHARS, (size_t)dlen, description) )
+				   PL_NCHARS, (size_t)dsnlen, dsn,
+				   PL_NCHARS, (size_t)dlen, description) )
 	  continue;
 
 	return FALSE;
@@ -3005,7 +3010,7 @@ odbc_data_sources(term_t list)
 	return PL_unify_nil(tail);
       default:
 	odbc_report(henv, NULL, NULL, rc);
-        return FALSE;
+	return FALSE;
     }
   }
 }
@@ -3018,7 +3023,7 @@ odbc_data_sources(term_t list)
 static int
 unifyStmt(term_t id, context *ctxt)
 { return PL_unify_term(id, PL_FUNCTOR, FUNCTOR_odbc_statement1,
-		             PL_POINTER, ctxt);
+			     PL_POINTER, ctxt);
 }
 
 
@@ -3119,7 +3124,7 @@ get_pltype(term_t t, SWORD *type)
 
       if ( def->name == name )
       { *type = def->type;
-        return TRUE;
+	return TRUE;
       }
     }
 
@@ -3218,8 +3223,8 @@ declare_parameters(context *ctxt, term_t parms)
 
     switch(params->cTypeID)
     { case SQL_C_WCHAR:
-        character_size = sizeof(SQLWCHAR);
-        /* FALLTHROUGH */
+	character_size = sizeof(SQLWCHAR);
+	/* FALLTHROUGH */
       case SQL_C_CHAR:
       case SQL_C_BINARY:
 	if ( cbColDef > 0 )
@@ -3227,8 +3232,8 @@ declare_parameters(context *ctxt, term_t parms)
 	       params->sqlTypeID == SQL_NUMERIC )
 	  { cbColDef += 2*character_size;	/* decimal dot and '-' sign */
 	  }
-          if ( (cbColDef+1) * character_size > PARAM_BUFSIZE )
-          { if ( !(params->ptr_value = odbc_malloc((cbColDef+1)*character_size)) )
+	  if ( (cbColDef+1) * character_size > PARAM_BUFSIZE )
+	  { if ( !(params->ptr_value = odbc_malloc((cbColDef+1)*character_size)) )
 	      return FALSE;
 	  }
 	  params->length_ind = cbColDef * character_size;
@@ -3237,40 +3242,40 @@ declare_parameters(context *ctxt, term_t parms)
 	  params->len_value = SQL_LEN_DATA_AT_EXEC(0);
 	  DEBUG(2, Sdprintf("Using SQLPutData() for column %d\n", pn));
 	}
-        vlenptr = &params->len_value;
+	vlenptr = &params->len_value;
 	break;
       case SQL_C_SLONG:
 	params->len_value = sizeof(SQLINTEGER);
-        vlenptr = &params->len_value;
+	vlenptr = &params->len_value;
 	break;
       case SQL_C_SBIGINT:
 	params->len_value = sizeof(SQLBIGINT);
-        vlenptr = &params->len_value;
+	vlenptr = &params->len_value;
 	break;
       case SQL_C_DOUBLE:
 	params->len_value = sizeof(SQLDOUBLE);
-        vlenptr = &params->len_value;
+	vlenptr = &params->len_value;
 	break;
       case SQL_C_DATE:
       case SQL_C_TYPE_DATE:
 	if ( !(params->ptr_value = odbc_malloc(sizeof(DATE_STRUCT))) )
 	  return FALSE;
-        params->len_value = sizeof(DATE_STRUCT);
+	params->len_value = sizeof(DATE_STRUCT);
 	vlenptr = &params->len_value;
-        break;
+	break;
       case SQL_C_TIME:
       case SQL_C_TYPE_TIME:
 	if ( !(params->ptr_value = odbc_malloc(sizeof(TIME_STRUCT))) )
 	  return FALSE;
-        params->len_value = sizeof(TIME_STRUCT);
+	params->len_value = sizeof(TIME_STRUCT);
 	vlenptr = &params->len_value;
-        break;
+	break;
       case SQL_C_TIMESTAMP:
 	if ( !(params->ptr_value = odbc_malloc(sizeof(SQL_TIMESTAMP_STRUCT))) )
 	  return FALSE;
-        params->len_value = sizeof(SQL_TIMESTAMP_STRUCT);
+	params->len_value = sizeof(SQL_TIMESTAMP_STRUCT);
 	vlenptr = &params->len_value;
-        break;
+	break;
       default:
 	Sdprintf("declare_parameters(): cTypeID %d not supported\n",
 		 params->cTypeID);
@@ -3547,7 +3552,7 @@ bind_parameters(context *ctxt, term_t parms)
 	  prm->len_value = sizeof(SQLINTEGER);
 	} else if ( !try_null(ctxt, prm, head, "32 bit integer") )
 	  return FALSE;
-        break;
+	break;
       }
       case SQL_C_SBIGINT:
       { int64_t val;
@@ -3558,14 +3563,14 @@ bind_parameters(context *ctxt, term_t parms)
 	  prm->len_value = sizeof(SQLBIGINT);
 	} else if ( !try_null(ctxt, prm, head, "64 bit integer") )
 	  return FALSE;
-        break;
+	break;
       }
       case SQL_C_DOUBLE:
 	if ( PL_get_float(head, (double *)prm->ptr_value) )
 	  prm->len_value = sizeof(double);
-        else if ( !try_null(ctxt, prm, head, "float") )
+	else if ( !try_null(ctxt, prm, head, "float") )
 	  return FALSE;
-        break;
+	break;
       case SQL_C_CHAR:
       case SQL_C_WCHAR:
       case SQL_C_BINARY:
@@ -3602,7 +3607,7 @@ bind_parameters(context *ctxt, term_t parms)
 	  for(o=(SQLWCHAR*)prm->ptr_value; ws<es;)
 	    *o++ = *ws++;
 	  *o = 0;
-        }
+	}
 #endif
 	} else
 	{ char datetime_str[128];
@@ -3682,13 +3687,14 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
       LOCK_CONTEXTS();
       if (!mark_context_as_executing(self, ctxt))
       { UNLOCK_CONTEXTS();
-        return FALSE;
+	return FALSE;
       }
       UNLOCK_CONTEXTS();
       ctxt->rc = SQLExecute(ctxt->hstmt);
       LOCK_CONTEXTS();
       clear(ctxt, CTX_EXECUTING);
-      executing_contexts[self] = NULL;
+      if ( self >= 0 )
+	executing_contexts[self] = NULL;
       UNLOCK_CONTEXTS();
       while( ctxt->rc == SQL_NEED_DATA )
       { PTR token;
@@ -3709,10 +3715,10 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	    if ( p->cTypeID == SQL_C_WCHAR )
 	    { wchar_t *ws;
 
-              if ( !PL_get_wchars(p->put_data, &len, &ws, flags) )
-              { SQLCancel(ctxt->hstmt);
+	      if ( !PL_get_wchars(p->put_data, &len, &ws, flags) )
+	      { SQLCancel(ctxt->hstmt);
 		return type_error(p->put_data, expected);
-              }
+	      }
 #if SIZEOF_SQLWCHAR == SIZEOF_WCHAR_T
 	      SQLPutData(ctxt->hstmt, ws, len*sizeof(SQLWCHAR));
 #else
@@ -3724,10 +3730,10 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	      if ( len+1 <= sizeof(fast)/sizeof(SQLWCHAR) )
 	      { tmp = fast;
 	      } else
-              { if ( !(tmp = odbc_malloc((len+1)*sizeof(SQLWCHAR))) )
-                { SQLCancel(ctxt->hstmt);
-                  return FALSE;
-                }
+	      { if ( !(tmp = odbc_malloc((len+1)*sizeof(SQLWCHAR))) )
+		{ SQLCancel(ctxt->hstmt);
+		  return FALSE;
+		}
 	      }
 
 	      for(o=tmp; ws<es;)
@@ -3743,10 +3749,10 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	    { int rep = (p->cTypeID == SQL_C_BINARY ? REP_ISO_LATIN_1
 						    : ctxt->connection->rep_flag);
 
-              if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
-              { SQLCancel(ctxt->hstmt);
-                return type_error(p->put_data, expected);
-              }
+	      if ( !PL_get_nchars(p->put_data, &len, &s, flags|rep) )
+	      { SQLCancel(ctxt->hstmt);
+		return type_error(p->put_data, expected);
+	      }
 	      SQLPutData(ctxt->hstmt, s, len);
 	    }
 	  }
@@ -3949,7 +3955,8 @@ odbc_cancel_thread(term_t Tid)
     return FALSE;
 
   LOCK_CONTEXTS();
-  if (tid < executing_context_size &&
+  if (tid >= 0 &&
+      tid < executing_context_size &&
       executing_contexts[tid] != NULL &&
       true(executing_contexts[tid], CTX_EXECUTING))
     SQLCancel(executing_contexts[tid]->hstmt);
@@ -4129,13 +4136,13 @@ install_odbc4pl()
 #endif
 
    NDET("odbc_query",		   4, pl_odbc_query);
-   NDET("odbc_tables",	           2, odbc_tables);
+   NDET("odbc_tables",		   2, odbc_tables);
    NDET("odbc_column",		   3, pl_odbc_column);
    NDET("odbc_types",		   3, odbc_types);
    DET("odbc_data_sources",	   1, odbc_data_sources);
 
    DET("$odbc_statistics",	   1, odbc_statistics);
-   DET("odbc_debug",	           1, odbc_debug);
+   DET("odbc_debug",		   1, odbc_debug);
 
    NDET("odbc_primary_key",	   3, odbc_primary_key);
    NDET("odbc_foreign_key",	   4, odbc_foreign_key);
@@ -4175,7 +4182,7 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_WCHAR:			/* see note above */
 	case SQL_WVARCHAR:
 	case SQL_WLONGVARCHAR:
-          return ctxt->connection->encoding == ENC_SQLWCHAR ? SQL_C_WCHAR
+	  return ctxt->connection->encoding == ENC_SQLWCHAR ? SQL_C_WCHAR
 							    : SQL_C_CHAR;
 #endif
 
@@ -4227,7 +4234,7 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_WCHAR:
 	case SQL_WVARCHAR:
 	case SQL_WLONGVARCHAR:
-          return ctxt->connection->encoding == ENC_SQLWCHAR ? SQL_C_WCHAR
+	  return ctxt->connection->encoding == ENC_SQLWCHAR ? SQL_C_WCHAR
 							    : SQL_C_CHAR;
 	default:
 	  return SQL_C_CHAR;
@@ -4366,39 +4373,39 @@ pl_put_column(context *c, int nth, term_t col)
 	goto ok;
       } else if ( len == SQL_NO_TOTAL )
       { int pad = p->cTypeID == SQL_C_CHAR ? 1 : 0;
-        int readsofar = sizeof(buf) - pad;
-        SQLLEN bufsize = 2048;			/* must be > sizeof(buf) */
+	int readsofar = sizeof(buf) - pad;
+	SQLLEN bufsize = 2048;			/* must be > sizeof(buf) */
 
 	if ( !(data = odbc_malloc(bufsize)) )
 	  return FALSE;
-        memcpy(data, buf, sizeof(buf));
+	memcpy(data, buf, sizeof(buf));
 
-        do /* Read blocks */
-        { c->rc = SQLGetData(c->hstmt, (UWORD)(nth+1), p->cTypeID,
+	do /* Read blocks */
+	{ c->rc = SQLGetData(c->hstmt, (UWORD)(nth+1), p->cTypeID,
 			     &data[readsofar], bufsize-readsofar, &len);
-          if ( c->rc == SQL_ERROR )
-          { DEBUG(1, Sdprintf("SQLGetData() returned %d\n", c->rc));
+	  if ( c->rc == SQL_ERROR )
+	  { DEBUG(1, Sdprintf("SQLGetData() returned %d\n", c->rc));
 	    return report_status(c);
-          } else if ( len == SQL_NO_DATA )	/* Previous block was final one */
-          { len += readsofar;
+	  } else if ( len == SQL_NO_DATA )	/* Previous block was final one */
+	  { len += readsofar;
 	    goto got_all_data;
-          } else if ( len == SQL_NO_TOTAL )	/* More blocks are yet to come */
-          { int chunk = bufsize-readsofar-pad;
+	  } else if ( len == SQL_NO_TOTAL )	/* More blocks are yet to come */
+	  { int chunk = bufsize-readsofar-pad;
 	    readsofar += chunk;
 	    bufsize *= 2;
 	    if ( !(data = odbc_realloc(data, bufsize)) )
 	      return FALSE;
-          } else if ( len <= bufsize-readsofar ) /* This block is the last one */
-          { len += readsofar;
+	  } else if ( len <= bufsize-readsofar ) /* This block is the last one */
+	  { len += readsofar;
 	    goto got_all_data;
-          } else				/* Is this possible? */
+	  } else				/* Is this possible? */
 	  { readsofar+= len;			/* It is analgous to the case */
 	    bufsize *= 2;			/* below where SQL_NO_TOTAL is */
 	    if ( !(data = odbc_realloc(data, bufsize)) ) /* not returned */
 	      return FALSE;
 	  }
-        } while(c->rc != SQL_SUCCESS && c->rc != SQL_NO_DATA);
-        len = readsofar;
+	} while(c->rc != SQL_SUCCESS && c->rc != SQL_NO_DATA);
+	len = readsofar;
       } else if ( len >= (SDWORD)sizeof(buf) )
       { int pad;
 	size_t todo;
@@ -4406,19 +4413,19 @@ pl_put_column(context *c, int nth, term_t col)
 	char *ep;
 	int part = 2;
 
-        switch(p->cTypeID)
-        { case SQL_C_CHAR:
-            pad = sizeof(SQLCHAR);
-            break;
-          case SQL_C_WCHAR:
-            pad = sizeof(SQLWCHAR);
-            break;
-          default:
-            pad = 0;
-        }
-        todo = len-sizeof(buf)+2*pad;
+	switch(p->cTypeID)
+	{ case SQL_C_CHAR:
+	    pad = sizeof(SQLCHAR);
+	    break;
+	  case SQL_C_WCHAR:
+	    pad = sizeof(SQLWCHAR);
+	    break;
+	  default:
+	    pad = 0;
+	}
+	todo = len-sizeof(buf)+2*pad;
 	if ( !(data = odbc_malloc(len+pad)) )
-          return FALSE;
+	  return FALSE;
 	memcpy(data, buf, sizeof(buf));	/* you don't get the data twice! */
 	ep = data+sizeof(buf)-pad;
 
@@ -4455,7 +4462,7 @@ pl_put_column(context *c, int nth, term_t col)
     if ( p->cTypeID == SQL_C_WCHAR )
     { if ( !put_wchars(val, p->plTypeID, len/sizeof(SQLWCHAR), (SQLWCHAR*)data) )
       { if ( data != buf )
-          free(data);
+	  free(data);
 	return FALSE;
       }
     } else
@@ -4464,7 +4471,7 @@ pl_put_column(context *c, int nth, term_t col)
 
       if ( !put_chars(val, p->plTypeID, rep, len, data) )
       { if ( data != buf )
-          free(data);
+	  free(data);
 	return FALSE;
       }
     }
@@ -4483,11 +4490,11 @@ pl_put_column(context *c, int nth, term_t col)
     { case SQL_C_CHAR:
 	rc = put_chars(val, p->plTypeID, c->connection->rep_flag,
 		       p->length_ind, (char*)p->ptr_value);
-        break;
+	break;
       case SQL_C_WCHAR:
 	rc = put_wchars(val, p->plTypeID,
 			p->length_ind/sizeof(SQLWCHAR), (SQLWCHAR*)p->ptr_value);
-        break;
+	break;
       case SQL_C_BINARY:
 	rc = put_chars(val, p->plTypeID, REP_ISO_LATIN_1,
 		       p->length_ind, (char*)p->ptr_value);
@@ -4580,7 +4587,7 @@ pl_put_column(context *c, int nth, term_t col)
 #endif
 	    break;
 	  default:
-            rc = 0; /* keep compiler happy */
+	    rc = 0; /* keep compiler happy */
 	    assert(0);
 	}
 	break;
