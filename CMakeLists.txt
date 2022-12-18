@@ -16,7 +16,8 @@ AC_CHECK_HEADERS(malloc.h time.h)
 AC_CHECK_FUNCS(localtime mktime gmtime timegm)
 
 check_type_size("long" SIZEOF_LONG)
-check_type_size("long long" SIZEOF_LONG_LONG)
+# define HAVE_LONG_LONG, required by some sql.h versions
+check_type_size("long long" LONG_LONG)
 check_type_size("wchar_t" SIZEOF_WCHAR_T)
 check_type_size(SQLWCHAR SIZEOF_SQLWCHAR)
 check_type_size(SQLLEN SIZEOF_SQLLEN)
