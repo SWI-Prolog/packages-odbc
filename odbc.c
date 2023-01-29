@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2002-2021, University of Amsterdam,
+    Copyright (c)  2002-2023, University of Amsterdam,
 			      VU University Amsterdam,
 			      SWI-Prolog Solutions b.v.
     All rights reserved.
@@ -2356,9 +2356,9 @@ prepare_result(context *ctxt)
 
     DEBUG(1, Sdprintf("prepare_result(): column %d, "
 		      "sqlTypeID = %d, cTypeID = %d, "
-		      "columnSize = %u\n",
+		      "columnSize = %zu\n",
 		      i, ptr_result->sqlTypeID, ptr_result->cTypeID,
-		      columnSize));
+		      (size_t)columnSize));
 
     if ( true(ctxt, CTX_TABLES) )
     { switch (ptr_result->sqlTypeID)
@@ -3536,8 +3536,8 @@ bind_parameters(context *ctxt, term_t parms)
 
   for(prm = ctxt->params; PL_get_list(tail, head, tail); prm++)
   { if ( prm->len_value == SQL_LEN_DATA_AT_EXEC(0) )
-    { DEBUG(2, Sdprintf("bind_parameters(): Delaying column %d\n",
-		     prm-ctxt->params+1));
+    { DEBUG(2, Sdprintf("bind_parameters(): Delaying column %zd\n",
+                        (size_t)(prm-ctxt->params+1)));
       prm->put_data = PL_copy_term_ref(head);
       continue;
     }
@@ -3593,8 +3593,8 @@ bind_parameters(context *ctxt, term_t parms)
 	    return type_error(head, expected);
 	  len = ls*sizeof(SQLWCHAR);
 	  if (  len > prm->length_ind )
-	  { DEBUG(1, Sdprintf("Column-width (SQL_C_WCHAR) = %d\n",
-			      prm->length_ind));
+	  { DEBUG(1, Sdprintf("Column-width (SQL_C_WCHAR) = %zd\n",
+			      (size_t)prm->length_ind));
 	    return representation_error(head, "column_width");
 	  }
 	  prm->len_value = len;
@@ -3621,8 +3621,8 @@ bind_parameters(context *ctxt, term_t parms)
 	    return type_error(head, expected);
 	  len = l;
 	  if ( len > prm->length_ind )
-	  { DEBUG(1, Sdprintf("Column-width (SQL_C_CHAR) = %d\n",
-			      prm->length_ind));
+	  { DEBUG(1, Sdprintf("Column-width (SQL_C_CHAR) = %zd\n",
+			      (size_t)prm->length_ind));
 	    return representation_error(head, "column_width");
 	  }
 	  memcpy(prm->ptr_value, s, len+1);
@@ -4432,7 +4432,7 @@ pl_put_column(context *c, int nth, term_t col)
 	while(todo > 0)
 	{ c->rc = SQLGetData(c->hstmt, (UWORD)(nth+1), p->cTypeID,
 			     ep, todo, &len2);
-	  DEBUG(2, Sdprintf("Requested %d bytes for part %d; \
+	  DEBUG(2, Sdprintf("Requested %zd bytes for part %d; \
 			     pad=%d; got %ld\n",
 			    todo, part, pad, len2));
 	  todo -= len2;
