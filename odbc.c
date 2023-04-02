@@ -608,24 +608,26 @@ odbc_realloc(void* inptr, size_t bytes)
 		 *	     PRIMITIVES		*
 		 *******************************/
 
+typedef int (*AtypeFunc)(term_t t, void *vp);
+
 #define get_name_arg_ex(i, t, n)  \
-	PL_get_typed_arg_ex(i, t, PL_get_atom_chars, "atom", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)PL_get_atom_chars, "atom", n)
 #define get_text_arg_ex(i, t, n)  \
-	PL_get_typed_arg_ex(i, t, get_text, "text", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)get_text, "text", n)
 #define get_atom_arg_ex(i, t, n)  \
-	PL_get_typed_arg_ex(i, t, PL_get_atom, "atom", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)PL_get_atom, "atom", n)
 #define get_int_arg_ex(i, t, n)   \
-	PL_get_typed_arg_ex(i, t, PL_get_integer, "integer", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)PL_get_integer, "integer", n)
 #define get_long_arg_ex(i, t, n)   \
-	PL_get_typed_arg_ex(i, t, PL_get_long, "integer", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)PL_get_long, "integer", n)
 #define get_bool_arg_ex(i, t, n)   \
-	PL_get_typed_arg_ex(i, t, PL_get_bool, "boolean", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)PL_get_bool, "boolean", n)
 #define get_float_arg_ex(i, t, n) \
-	PL_get_typed_arg_ex(i, t, PL_get_float, "float", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)PL_get_float, "float", n)
 #define get_encoding_arg_ex(i, t, n) \
-	PL_get_typed_arg_ex(i, t, get_encoding, "encoding", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)get_encoding, "encoding", n)
 #define get_odbc_version_arg_ex(i, t, n) \
-	PL_get_typed_arg_ex(i, t, get_odbc_version, "odbc_version", n)
+	PL_get_typed_arg_ex(i, t, (AtypeFunc)get_odbc_version, "odbc_version", n)
 
 /* Used for passwd and driver string.  Should use Unicode/encoding
    stuff for that.
@@ -708,7 +710,7 @@ enc_to_rep(IOENC enc)
 
 
 static int
-PL_get_typed_arg_ex(int i, term_t t, int (*func)(), const char *ex, void *ap)
+PL_get_typed_arg_ex(int i, term_t t, AtypeFunc func, const char *ex, void *ap)
 { term_t a = PL_new_term_ref();
 
   if ( !PL_get_arg(i, t, a) )
@@ -720,10 +722,10 @@ PL_get_typed_arg_ex(int i, term_t t, int (*func)(), const char *ex, void *ap)
 }
 
 #define get_int_arg(i, t, n)   \
-	PL_get_typed_arg(i, t, PL_get_integer, n)
+	PL_get_typed_arg(i, t, (AtypeFunc)PL_get_integer, n)
 
 static int
-PL_get_typed_arg(int i, term_t t, int (*func)(), void *ap)
+PL_get_typed_arg(int i, term_t t, AtypeFunc func, void *ap)
 { term_t a = PL_new_term_ref();
 
   if ( !PL_get_arg(i, t, a) )
