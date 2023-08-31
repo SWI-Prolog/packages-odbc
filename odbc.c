@@ -39,7 +39,11 @@ This module is based on pl_odbc.{c,pl},   a  read-only ODBC interface by
 Stefano  De  Giorgi  (s.degiorgi@tin.it).
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#define _CRT_SECURE_NO_WARNINGS 1
 #include <config.h>
+#ifdef _MSC_VER
+#pragma warning(disable : 4996) /* deprecated function SQLSetConnectOption() */
+#endif
 
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
@@ -1098,7 +1102,7 @@ compile_arg(compile_info *info, term_t t)
     case PL_LIST_PAIR:
 #endif
     { functor_t f;
-      int i, arity;
+      size_t i, arity;
       term_t a = PL_new_term_ref();
 
       if ( !PL_get_functor(t, &f) )
@@ -1190,7 +1194,7 @@ unregister_code(code *PC)
     }
     case PL_FUNCTOR:
     { functor_t f = (functor_t)*PC++;
-      int i, arity = PL_functor_arity(f);
+      size_t i, arity = PL_functor_arity(f);
 
       for(i=0;i<arity;i++)
       { if ( !(PC=unregister_code(PC)) )
@@ -1268,8 +1272,8 @@ build_term(context *ctxt, code *PC, term_t result)
     }
     case PL_FUNCTOR:
     { functor_t f = (functor_t)*PC++;
-      int i, arity = PL_functor_arity(f);
-      term_t av = PL_new_term_refs(arity);
+      size_t i, arity = PL_functor_arity(f);
+      term_t av = PL_new_term_refs((int)arity);
 
       for(i=0;i<arity;i++)
       { if ( !(PC=build_term(ctxt, PC, av+i)) )
@@ -4375,7 +4379,7 @@ pl_put_column(context *c, int nth, term_t col)
 	goto ok;
       } else if ( len == SQL_NO_TOTAL )
       { int pad = p->cTypeID == SQL_C_CHAR ? 1 : 0;
-	int readsofar = sizeof(buf) - pad;
+	size_t readsofar = sizeof(buf) - pad;
 	SQLLEN bufsize = 2048;			/* must be > sizeof(buf) */
 
 	if ( !(data = odbc_malloc(bufsize)) )
@@ -4392,13 +4396,13 @@ pl_put_column(context *c, int nth, term_t col)
 	  { len += readsofar;
 	    goto got_all_data;
 	  } else if ( len == SQL_NO_TOTAL )	/* More blocks are yet to come */
-	  { int chunk = bufsize-readsofar-pad;
+	  { size_t chunk = bufsize-readsofar-pad;
 	    readsofar += chunk;
 	    bufsize *= 2;
 	    if ( !(data = odbc_realloc(data, bufsize)) )
 	      return FALSE;
-	  } else if ( len <= bufsize-readsofar ) /* This block is the last one */
-	  { len += readsofar;
+	  } else if ( (ssize_t)len <= (ssize_t)(bufsize-readsofar) )
+	  { len += readsofar;			/* This block is the last one */
 	    goto got_all_data;
 	  } else				/* Is this possible? */
 	  { readsofar+= len;			/* It is analgous to the case */
