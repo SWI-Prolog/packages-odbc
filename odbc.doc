@@ -503,6 +503,14 @@ The use must supply an atom of the format \exam{YYYY-MM-DD} rather than
 a term \term{date}{Year,Month,Day}. This construct enhances flexibility
 and allows for passing values that have no proper representation in
 Prolog.
+
+    \definition{\arg{Variable}}
+Interpreted as \const{default}.  It unifies \arg{Variable} with the
+\arg{PrologType} $>$ \arg{SqlType} as using the types derived.\footnote{
+The current version does not provide the field with in \arg{SqlType}.
+Future versions may improve on that.}  This feature is first of all
+intended for debugging.   Using \term{odbc_debug}{1}, the library
+prints details on the derived types.
 \end{description}
 
 \arg{Options} defines a list of options for executing the statement.  See

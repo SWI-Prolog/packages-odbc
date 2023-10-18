@@ -359,6 +359,8 @@ static void unmark_and_close_context(context *ctx);
 static foreign_t odbc_set_connection(connection *cn, term_t option);
 static int get_pltype(term_t t, SWORD *type);
 static SWORD get_sqltype_from_atom(atom_t name, SWORD *type);
+static const char *sql_type_name(SWORD type);
+static const char *sql_c_type_name(SWORD type);
 
 
 		 /*******************************
@@ -2361,9 +2363,11 @@ prepare_result(context *ctxt)
     }
 
     DEBUG(1, Sdprintf("prepare_result(): column %d, "
-		      "sqlTypeID = %d, cTypeID = %d, "
+		      "sqlTypeID = %d (%s), cTypeID = %d (%s), "
 		      "columnSize = %zu\n",
-		      i, ptr_result->sqlTypeID, ptr_result->cTypeID,
+		      i,
+		      ptr_result->sqlTypeID, sql_type_name(ptr_result->sqlTypeID),
+		      ptr_result->cTypeID, sql_c_type_name(ptr_result->cTypeID),
 		      (size_t)columnSize));
 
     if ( true(ctxt, CTX_TABLES) )
@@ -3103,6 +3107,19 @@ get_sqltype_from_atom(atom_t name, SWORD *type)
   return FALSE;
 }
 
+static const char*
+sql_type_name(SWORD type)
+{ sqltypedef *def;
+
+  for(def=sqltypes; def->text; def++)
+  { if ( def->type == type )
+      return (const char*)def->text;
+  }
+
+  return "?";
+}
+
+
 static sqltypedef pltypes[] =
 { { SQL_PL_DEFAULT,    "default" },
   { SQL_PL_ATOM,       "atom" },
@@ -3141,6 +3158,49 @@ get_pltype(term_t t, SWORD *type)
 }
 
 
+static const char*
+pl_type_name(SWORD type)
+{ sqltypedef *def;
+
+  for(def=pltypes; def->text; def++)
+  { if ( def->type == type )
+      return (const char*)def->text;
+  }
+
+  return "?";
+}
+
+
+static sqltypedef sql_c_types[] =
+{ { SQL_C_WCHAR,     "wchar" },
+  { SQL_C_CHAR,	     "char" },
+  { SQL_C_BINARY,    "binary" },
+  { SQL_C_SLONG,     "slong" },
+  { SQL_C_SBIGINT,   "sbigint" },
+  { SQL_C_DOUBLE,    "double" },
+  { SQL_C_DATE,	     "date" },
+  { SQL_C_TYPE_DATE, "type_date" },
+  { SQL_C_TIME,	     "time" },
+  { SQL_C_TYPE_TIME, "type_time" },
+  { SQL_C_TIMESTAMP, "timestamp" },
+  { 0,		     NULL }
+};
+
+
+static const char*
+sql_c_type_name(SWORD type)
+{ sqltypedef *def;
+
+  for(def=sql_c_types; def->text; def++)
+  { if ( def->type == type )
+      return (const char*)def->text;
+  }
+
+  return "?";
+}
+
+
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Declare parameters for prepared statements.
 
@@ -3158,7 +3218,7 @@ declare_parameters(context *ctxt, term_t parms)
   term_t head = PL_new_term_ref();
   parameter *params;
   SWORD npar;
-  int pn;
+  SWORD pn;
   int character_size = ((ctxt->connection->encoding == ENC_UTF8)?4:1)*sizeof(char);
 
   TRY(ctxt,
@@ -3187,19 +3247,25 @@ declare_parameters(context *ctxt, term_t parms)
     SQLULEN cbColDef = 0;
     SWORD plType = SQL_PL_DEFAULT;
     SQLLEN *vlenptr = NULL;		/* pointer to length */
+    int isvar;
 
-    if ( PL_is_functor(head, FUNCTOR_gt2) )
-    { term_t a = PL_new_term_ref();
+    if ( (isvar=PL_is_variable(head)) )
+    { name = ATOM_default;
+      arity = 0;
+    } else
+    { if ( PL_is_functor(head, FUNCTOR_gt2) )
+      { term_t a = PL_new_term_ref();
 
-      _PL_get_arg(1, head, a);
-      if ( !get_pltype(a, &plType) )
-	return FALSE;
+	_PL_get_arg(1, head, a);
+	if ( !get_pltype(a, &plType) )
+	  return FALSE;
 
-      _PL_get_arg(2, head, head);
+	_PL_get_arg(2, head, head);
+      }
+
+      if ( !PL_get_name_arity(head, &name, &arity) )
+	return type_error(head, "parameter_type");
     }
-
-    if ( !PL_get_name_arity(head, &name, &arity) )
-      return type_error(head, "parameter_type");
 
     if ( name != ATOM_default )
     { int val;
@@ -3213,10 +3279,10 @@ declare_parameters(context *ctxt, term_t parms)
       if ( get_int_arg(2, head, &val) )	/* decimal(cbColDef, scale) */
 	params->scale = val;
     } else
-    { TRY(ctxt, SQLDescribeParam(ctxt->hstmt,		/* hstmt */
-				 (SWORD)pn,		/* ipar */
+    { TRY(ctxt, SQLDescribeParam(ctxt->hstmt,	/* hstmt */
+				 pn,		/* ipar */
 				 &sqlType,
-				 &cbColDef,             /* This is in characters - not bytes */
+				 &cbColDef,     /* Characters - not bytes */
 				 &params->scale,
 				 &fNullable),
 	  (void)0);
@@ -3226,6 +3292,17 @@ declare_parameters(context *ctxt, term_t parms)
     params->plTypeID  = plType;
     params->cTypeID   = CvtSqlToCType(ctxt, params->sqlTypeID, plType);
     params->ptr_value = (SQLPOINTER)params->buf;
+    if ( isvar &&
+	 !PL_unify_term(head, PL_FUNCTOR, FUNCTOR_gt2,
+			        PL_CHARS, pl_type_name(plType),
+		                PL_CHARS, sql_type_name(sqlType)) )
+      return FALSE;
+
+    DEBUG(1, Sdprintf("param: SQL:%s, Prolog:%s, C:%s, cbColDef=%d, scale=%d\n",
+		      sql_type_name(sqlType),
+		      pl_type_name(plType),
+		      sql_c_type_name(params->cTypeID),
+		      (int)cbColDef, (int)params->scale));
 
     switch(params->cTypeID)
     { case SQL_C_WCHAR:
