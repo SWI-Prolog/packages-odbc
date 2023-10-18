@@ -224,6 +224,9 @@ sql_type(char, T, char(Len)) :-
 sql_type(varchar, T, varchar(Len)) :-
     !,
     column_facet(length(Len), T).
+sql_type('TEXT', T, longvarchar(Len)) :-
+    !,
+    column_facet(length(Len), T).
 sql_type(TypeName, _T, Type) :-
     downcase_atom(TypeName, Type).
 
