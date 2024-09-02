@@ -341,8 +341,8 @@ static struct
 
 #define FND_SIZE(n)	((size_t)&((findall*)NULL)->codes[n])
 
-#define true(s, f)	((s)->flags & (f))
-#define false(s, f)	!true(s, f)
+#define ison(s, f)	((s)->flags & (f))
+#define isoff(s, f)	!ison(s, f)
 #define set(s, f)	((s)->flags |= (f))
 #define clear(s, f)	((s)->flags &= ~(f))
 
@@ -456,7 +456,7 @@ report_status(context *ctxt)
   { case SQL_SUCCESS:
       return TRUE;
     case SQL_SUCCESS_WITH_INFO:
-      if ( true(ctxt, CTX_SILENT) )
+      if ( ison(ctxt, CTX_SILENT) )
 	return TRUE;
       break;
     case SQL_NO_DATA_FOUND:
@@ -1047,13 +1047,13 @@ compile_arg(compile_info *info, term_t t)
       if ( !PL_get_atom(t, &val) )
 	assert(0);
       ADDCODE_1(info, PL_ATOM, val);
-      if ( true(info, CTX_PERSISTENT) )
+      if ( ison(info, CTX_PERSISTENT) )
 	PL_register_atom(val);
       break;
     }
     case PL_STRING:
     case PL_FLOAT:
-      if ( true(info, CTX_PERSISTENT) )
+      if ( ison(info, CTX_PERSISTENT) )
       { if ( tt == PL_FLOAT )
 	{ u_double v;
 	  unsigned int i;
@@ -1215,7 +1215,7 @@ unregister_code(code *PC)
 static void
 free_findall(findall *in)
 { if ( in && --in->references == 0 )
-  { if ( true(in, CTX_PERSISTENT) )
+  { if ( ison(in, CTX_PERSISTENT) )
       unregister_code(in->codes);
 
     free(in);
@@ -2088,9 +2088,9 @@ free_context(context *ctx)
 
   free_parameters(ctx->NumCols,   ctx->result);
   free_parameters(ctx->NumParams, ctx->params);
-  if ( true(ctx, CTX_SQLMALLOCED) )
+  if ( ison(ctx, CTX_SQLMALLOCED) )
     PL_free(ctx->sqltext.a);
-  if ( true(ctx, CTX_OWNNULL) )
+  if ( ison(ctx, CTX_OWNNULL) )
     free_nulldef(ctx->null);
   if ( ctx->findall )
     free_findall(ctx->findall);
@@ -2196,7 +2196,7 @@ clone_context(context *in)
       return NULL;
     memcpy(new->result, in->result, in->NumCols*sizeof(parameter));
 
-    if ( true(in, CTX_BOUND) )
+    if ( ison(in, CTX_BOUND) )
     { parameter *p = new->result;
       int i;
 
@@ -2283,7 +2283,7 @@ get_sql_text(context *ctxt, term_t tquery)
 
 static int
 max_qualifier_length(connection *cn)
-{ if ( false(cn, CTX_GOT_QLEN) )
+{ if ( isoff(cn, CTX_GOT_QLEN) )
   { SQLUSMALLINT len;
     SWORD plen;
     RETCODE rc;
@@ -2335,7 +2335,7 @@ prepare_result(context *ctxt)
 		   &dataType, &columnSize, &decimalDigits,
 		   &nullable);
 
-    if ( true(ctxt, CTX_SOURCE) )
+    if ( ison(ctxt, CTX_SOURCE) )
     { SQLLEN ival;			/* was DWORD */
 
       ptr_result->source.column = PL_new_atom_nchars(nameLength,
@@ -2370,7 +2370,7 @@ prepare_result(context *ctxt)
 		      ptr_result->cTypeID, sql_c_type_name(ptr_result->cTypeID),
 		      (size_t)columnSize));
 
-    if ( true(ctxt, CTX_TABLES) )
+    if ( ison(ctxt, CTX_TABLES) )
     { switch (ptr_result->sqlTypeID)
       { case SQL_LONGVARCHAR:
 	case SQL_VARCHAR:
@@ -2474,7 +2474,7 @@ odbc_row(context *ctxt, term_t trow)
 { term_t local_trow;
   fid_t fid;
 
-  if ( !true(ctxt, CTX_BOUND) )
+  if ( !ison(ctxt, CTX_BOUND) )
   { if ( !prepare_result(ctxt) )
     { close_context(ctxt);
       return FALSE;
@@ -2541,7 +2541,7 @@ odbc_row(context *ctxt, term_t trow)
   fid = PL_open_foreign_frame();
 
   for(;;)				/* normal non-deterministic access */
-  { if ( true(ctxt, CTX_PREFETCHED) )
+  { if ( ison(ctxt, CTX_PREFETCHED) )
     { clear(ctxt, CTX_PREFETCHED);
     } else
     { TRY(ctxt, SQLFetch(ctxt->hstmt), close_context(ctxt));
@@ -3294,8 +3294,8 @@ declare_parameters(context *ctxt, term_t parms)
     params->ptr_value = (SQLPOINTER)params->buf;
     if ( isvar &&
 	 !PL_unify_term(head, PL_FUNCTOR, FUNCTOR_gt2,
-			        PL_CHARS, pl_type_name(plType),
-		                PL_CHARS, sql_type_name(sqlType)) )
+				PL_CHARS, pl_type_name(plType),
+				PL_CHARS, sql_type_name(sqlType)) )
       return FALSE;
 
     DEBUG(1, Sdprintf("param: SQL:%s, Prolog:%s, C:%s, cbColDef=%d, scale=%d\n",
@@ -3445,7 +3445,7 @@ odbc_free_statement(term_t qid)
   if ( !getStmt(qid, &ctxt) )
     return FALSE;
 
-  if ( true(ctxt, CTX_INUSE) )
+  if ( ison(ctxt, CTX_INUSE) )
     clear(ctxt, CTX_PERSISTENT);	/* oops, delay! */
   else
     free_context(ctxt);
@@ -3753,10 +3753,10 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
       int self = PL_thread_self();
       if ( !getStmt(qid, &ctxt) )
 	return FALSE;
-      if ( true(ctxt, CTX_INUSE) )
+      if ( ison(ctxt, CTX_INUSE) )
       { context *clone;
 
-	if ( true(ctxt, CTX_NOAUTO) || !(clone = clone_context(ctxt)) )
+	if ( ison(ctxt, CTX_NOAUTO) || !(clone = clone_context(ctxt)) )
 	  return context_error(qid, "in_use", "statement");
 	else
 	  ctxt = clone;
@@ -3846,7 +3846,7 @@ odbc_execute(term_t qid, term_t args, term_t row, control_t handle)
 	return FALSE;
       }
 
-      if ( true(ctxt, CTX_NOAUTO) )
+      if ( ison(ctxt, CTX_NOAUTO) )
 	return TRUE;
 
       return odbc_row(ctxt, row);
@@ -3911,7 +3911,7 @@ odbc_next_result_set(term_t qid, control_t handle)
   int rc;
   if ( !getStmt(qid, &ctxt) )
     return FALSE;
-  if ( false(ctxt, CTX_NOAUTO) || false(ctxt, CTX_INUSE) || false(ctxt, CTX_BOUND) )
+  if ( isoff(ctxt, CTX_NOAUTO) || isoff(ctxt, CTX_INUSE) || isoff(ctxt, CTX_BOUND) )
     return permission_error("next_result_set", "statement", qid);
   rc = SQLMoreResults(ctxt->hstmt);
   /* We now need to free the buffers used to retrieve the previous result set and
@@ -3948,10 +3948,10 @@ odbc_fetch(term_t qid, term_t row, term_t options)
 
   if ( !getStmt(qid, &ctxt) )
     return FALSE;
-  if ( false(ctxt, CTX_NOAUTO) || false(ctxt, CTX_INUSE) )
+  if ( isoff(ctxt, CTX_NOAUTO) || isoff(ctxt, CTX_INUSE) )
     return permission_error("fetch", "statement", qid);
 
-  if ( !true(ctxt, CTX_BOUND) )
+  if ( !ison(ctxt, CTX_BOUND) )
   { if ( !prepare_result(ctxt) )
       return FALSE;
     set(ctxt, CTX_BOUND);
@@ -4041,7 +4041,7 @@ odbc_cancel_thread(term_t Tid)
   if (tid >= 0 &&
       tid < executing_context_size &&
       executing_contexts[tid] != NULL &&
-      true(executing_contexts[tid], CTX_EXECUTING))
+      ison(executing_contexts[tid], CTX_EXECUTING))
     SQLCancel(executing_contexts[tid]->hstmt);
   UNLOCK_CONTEXTS();
 
@@ -4302,7 +4302,7 @@ CvtSqlToCType(context *ctxt, SQLSMALLINT fSqlType, SQLSMALLINT plTypeID)
 	case SQL_TYPE_TIMESTAMP:
 	  return SQL_C_TIMESTAMP;
 	default:
-	  if ( !true(ctxt, CTX_SILENT) )
+	  if ( !ison(ctxt, CTX_SILENT) )
 	    Sdprintf("Mapped unknown fSqlType %d to atom\n", fSqlType);
 	  return SQL_C_CHAR;
       }
@@ -4426,7 +4426,7 @@ pl_put_column(context *c, int nth, term_t col)
   term_t cell;
   term_t val;
 
-  if ( true(c, CTX_SOURCE) )
+  if ( ison(c, CTX_SOURCE) )
   { cell = PL_new_term_refs(3);
 
     PL_put_atom(cell+0, p->source.table);
@@ -4684,7 +4684,7 @@ pl_put_column(context *c, int nth, term_t col)
   }
 
 ok:
-  if ( true(c, CTX_SOURCE) )
+  if ( ison(c, CTX_SOURCE) )
     return PL_cons_functor_v(col, FUNCTOR_column3, cell);
 
   return TRUE;
