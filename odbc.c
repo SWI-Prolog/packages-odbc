@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2002-2023, University of Amsterdam,
+    Copyright (c)  2002-2025, University of Amsterdam,
 			      VU University Amsterdam,
 			      SWI-Prolog Solutions b.v.
     All rights reserved.
@@ -47,6 +47,9 @@ Stefano  De  Giorgi  (s.degiorgi@tin.it).
 
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
+#ifdef __WINDOWS__
+#include <windows.h>
+#endif
 
 #define O_DEBUG 1
 
