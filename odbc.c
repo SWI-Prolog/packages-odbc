@@ -41,6 +41,7 @@ Stefano  De  Giorgi  (s.degiorgi@tin.it).
 
 #define _CRT_SECURE_NO_WARNINGS 1
 #include <config.h>
+#include <stdbool.h>
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) /* deprecated function SQLSetConnectOption() */
 #endif
@@ -473,87 +474,35 @@ report_status(context *ctxt)
 }
 
 
-static int
+static bool
 type_error(term_t actual, const char *expected)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_type_error2,
-			 PL_CHARS, expected,
-			 PL_TERM, actual,
-		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
+{ return PL_type_error(expected, actual),false;
 }
 
-static int
+static bool
 domain_error(term_t actual, const char *expected)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_domain_error2,
-			 PL_CHARS, expected,
-			 PL_TERM, actual,
-		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
+{ return PL_domain_error(expected, actual),false;
 }
 
-static int
+static bool
 existence_error(term_t actual, const char *expected)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_existence_error2,
-			 PL_CHARS, expected,
-			 PL_TERM, actual,
-		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
+{ return PL_existence_error(expected, actual),false;
 }
 
-static int
+static bool
 resource_error(const char *error)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_resource_error1,
-			 PL_CHARS, error,
-		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
+{ return PL_resource_error(error),false;
 }
 
 
-static int
+static bool
 representation_error(term_t t, const char *error)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_representation_error1,
-			 PL_CHARS, error,
-		       PL_TERM, t) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
+{ (void)t;
+  return PL_representation_error(error),false;
 }
 
 
-static int
+static bool
 context_error(term_t term, const char *error, const char *what)
 { term_t ex;
 
@@ -565,9 +514,9 @@ context_error(term_t term, const char *error, const char *what)
 			 PL_CHARS, error,
 			 PL_CHARS, what,
 		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
+    return PL_raise_exception(ex),false;
 
-  return FALSE;
+  return false;
 }
 
 
@@ -3040,7 +2989,7 @@ unifyStmt(term_t id, context *ctxt)
 }
 
 
-static int
+static bool
 getStmt(term_t id, context **ctxt)
 { if ( PL_is_functor(id, FUNCTOR_odbc_statement1) )
   { term_t a = PL_new_term_ref();
@@ -3053,7 +3002,7 @@ getStmt(term_t id, context **ctxt)
       if ( (*ctxt)->magic != CTX_MAGIC )
 	return existence_error(id, "odbc_statement_handle");
 
-      return TRUE;
+      return true;
     }
   }
 
