@@ -38,10 +38,6 @@
             test_odbc/1,                % +ConnectionString
             test_odbc/2                 % +DSN, +Options
           ]).
-                                        % use the local copy
-:- asserta(user:file_search_path(foreign, '.')).
-:- asserta(user:file_search_path(library, '.')).
-:- asserta(user:file_search_path(library, '../plunit')).
 
 :- use_module(library(odbc)).
 :- use_module(library(lists)).
