@@ -157,14 +157,6 @@ static atom_t	 ATOM_once;		/* "once" */
 static atom_t	 ATOM_multiple;		/* "multiple" */
 static atom_t	 ATOM_commit;		/* "commit" */
 static atom_t	 ATOM_rollback;		/* "rollback" */
-static atom_t	 ATOM_atom;
-static atom_t	 ATOM_string;
-static atom_t	 ATOM_codes;
-static atom_t	 ATOM_float;
-static atom_t	 ATOM_integer;
-static atom_t	 ATOM_time;
-static atom_t	 ATOM_date;
-static atom_t	 ATOM_timestamp;
 static atom_t	 ATOM_all_types;
 static atom_t	 ATOM_null;		/* default null atom */
 static atom_t	 ATOM_;			/* "" */
@@ -192,24 +184,11 @@ static functor_t FUNCTOR_time3;		/* time/7 */
 static functor_t FUNCTOR_date3;		/* date/3 */
 static functor_t FUNCTOR_odbc3;		/* odbc(state, code, message) */
 static functor_t FUNCTOR_error2;	/* error(Formal, Context) */
-static functor_t FUNCTOR_type_error2;	/* type_error(Term, Expected) */
-static functor_t FUNCTOR_domain_error2;	/* domain_error(Term, Expected) */
-static functor_t FUNCTOR_existence_error2; /* existence_error(Term, Expected) */
-static functor_t FUNCTOR_representation_error1; /* representation_error(What) */
-static functor_t FUNCTOR_resource_error1; /* resource_error(Error) */
 static functor_t FUNCTOR_permission_error3;
 static functor_t FUNCTOR_odbc_statement1; /* $odbc_statement(Id) */
 static functor_t FUNCTOR_odbc_connection1;
 static functor_t FUNCTOR_encoding1;
-static functor_t FUNCTOR_user1;
-static functor_t FUNCTOR_password1;
-static functor_t FUNCTOR_driver_string1;
-static functor_t FUNCTOR_alias1;
-static functor_t FUNCTOR_mars1;
 static functor_t FUNCTOR_connection_pooling1;
-static functor_t FUNCTOR_connection_pool_mode1;
-static functor_t FUNCTOR_odbc_version1;
-static functor_t FUNCTOR_open1;
 static functor_t FUNCTOR_auto_commit1;
 static functor_t FUNCTOR_types1;
 static functor_t FUNCTOR_minus2;
@@ -4130,14 +4109,6 @@ install_odbc4pl()
    ATOM_multiple      =	PL_new_atom("multiple");
    ATOM_commit	      =	PL_new_atom("commit");
    ATOM_rollback      =	PL_new_atom("rollback");
-   ATOM_atom	      =	PL_new_atom("atom");
-   ATOM_string	      =	PL_new_atom("string");
-   ATOM_codes	      =	PL_new_atom("codes");
-   ATOM_integer	      =	PL_new_atom("integer");
-   ATOM_float	      =	PL_new_atom("float");
-   ATOM_time	      =	PL_new_atom("time");
-   ATOM_date	      =	PL_new_atom("date");
-   ATOM_timestamp     =	PL_new_atom("timestamp");
    ATOM_all_types     = PL_new_atom("all_types");
    ATOM_null          = PL_new_atom("$null$");
    ATOM_	      = PL_new_atom("");
@@ -4165,24 +4136,11 @@ install_odbc4pl()
    FUNCTOR_date3		 = MKFUNCTOR("date", 3);
    FUNCTOR_odbc3		 = MKFUNCTOR("odbc", 3);
    FUNCTOR_error2		 = MKFUNCTOR("error", 2);
-   FUNCTOR_type_error2		 = MKFUNCTOR("type_error", 2);
-   FUNCTOR_domain_error2	 = MKFUNCTOR("domain_error", 2);
-   FUNCTOR_existence_error2	 = MKFUNCTOR("existence_error", 2);
-   FUNCTOR_resource_error1	 = MKFUNCTOR("resource_error", 1);
    FUNCTOR_permission_error3	 = MKFUNCTOR("permission_error", 3);
-   FUNCTOR_representation_error1 = MKFUNCTOR("representation_error", 1);
    FUNCTOR_odbc_statement1	 = MKFUNCTOR("$odbc_statement", 1);
    FUNCTOR_odbc_connection1	 = MKFUNCTOR("$odbc_connection", 1);
    FUNCTOR_encoding1		 = MKFUNCTOR("encoding", 1);
-   FUNCTOR_user1		 = MKFUNCTOR("user", 1);
-   FUNCTOR_password1		 = MKFUNCTOR("password", 1);
-   FUNCTOR_driver_string1	 = MKFUNCTOR("driver_string", 1);
-   FUNCTOR_alias1		 = MKFUNCTOR("alias", 1);
-   FUNCTOR_mars1		 = MKFUNCTOR("mars", 1);
    FUNCTOR_connection_pooling1	 = MKFUNCTOR("connection_pooling", 1);
-   FUNCTOR_connection_pool_mode1 = MKFUNCTOR("connection_pool_mode", 1);
-   FUNCTOR_odbc_version1	 = MKFUNCTOR("odbc_version", 1);
-   FUNCTOR_open1		 = MKFUNCTOR("open", 1);
    FUNCTOR_auto_commit1		 = MKFUNCTOR("auto_commit", 1);
    FUNCTOR_types1		 = MKFUNCTOR("types", 1);
    FUNCTOR_minus2		 = MKFUNCTOR("-", 2);
